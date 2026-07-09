@@ -1,0 +1,17 @@
+name: feature
+description: >-
+  Scaffold a minimal feature package following this repo's proven Clean
+  Architecture slice (entity -> repository -> remote datasource -> cubit ->
+  page -> test). Deliberately does NOT generate UseCases or local caching --
+  those are per-feature manual decisions (see ARCHITECTURE.md s21/ADR-004
+  and s11/ADR-009).
+version: 0.1.0+1
+
+environment:
+  mason: ^0.1.2
+
+vars:
+  feature_name:
+    type: string
+    description: "Feature name in snake_case, e.g. 'settings' (NOT 'feature_settings')"
+    prompt: "What is the feature name? (snake_case, tanpa prefix 'feature_')"

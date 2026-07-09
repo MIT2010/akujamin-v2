@@ -1,0 +1,31 @@
+import 'package:authentication/authentication.dart';
+import 'package:design_system/design_system.dart';
+import 'package:feature_home/feature_home.dart';
+import 'package:feature_profile/feature_profile.dart';
+import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
+import 'package:shared/shared.dart';
+
+/// The composition root's widget (§13, §17): wires `AppRouter` (from
+/// `shared`) into `MaterialApp.router`, themed from `design_system`.
+class App extends StatelessWidget {
+  const App({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final appRouter = getIt<AppRouter>()..standaloneRoutes = _routes;
+
+    return MaterialApp.router(
+      title: 'Flutter Starter Kit',
+      routerConfig: appRouter.router,
+      theme: AppTheme.light(),
+      darkTheme: AppTheme.dark(),
+    );
+  }
+}
+
+final _routes = <RouteBase>[
+  GoRoute(path: '/login', builder: (context, state) => const LoginPage()),
+  GoRoute(path: '/home', builder: (context, state) => const HomePage()),
+  GoRoute(path: '/profile', builder: (context, state) => const ProfilePage()),
+];

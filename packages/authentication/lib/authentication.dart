@@ -1,0 +1,17 @@
+/// Login/register/token refresh domain + data + minimal UI (§5, §18-24).
+library;
+
+export 'src/data/datasources/auth_remote_datasource.dart';
+export 'src/data/datasources/secure_token_storage.dart';
+export 'src/data/models/user_model.dart';
+export 'src/data/repositories/auth_repository_impl.dart';
+export 'src/di/register_module.dart';
+export 'src/domain/entities/user.dart';
+export 'src/domain/repositories/auth_repository.dart';
+export 'src/domain/usecases/login_usecase.dart';
+export 'src/presentation/cubit/auth_cubit.dart';
+export 'src/presentation/cubit/auth_session_adapter.dart';
+export 'src/presentation/cubit/auth_state.dart';
+export 'src/presentation/cubit/login_cubit.dart';
+export 'src/presentation/cubit/login_state.dart';
+export 'src/presentation/pages/login_page.dart';

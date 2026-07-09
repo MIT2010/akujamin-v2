@@ -1,0 +1,86 @@
+name: flutter_starter_kit_workspace
+publish_to: none
+
+environment:
+  sdk: ^3.12.2
+
+dev_dependencies:
+  # Pinned to the 7.x line (not the newer ^8.1.0) because melos 8.x bumped
+  # its cli_util dependency to ^0.5.0, which conflicts with
+  # flutter_launcher_icons' cli_util ^0.4.1 (apps/mobile) once both land in
+  # the same pub workspace resolution — melos is dev-tooling only, never
+  # imported by app code, so pinning it down a major is low-risk.
+  melos: ^7.0.0
+
+workspace:
+  - apps/mobile
+  - packages/core
+  - packages/design_system
+  - packages/shared
+  - packages/authentication
+  - packages/feature_home
+  - packages/feature_profile
+
+# ADR-006: `fvm` is baked into every script body below (`fvm flutter`/
+# `fvm dart`, never bare `flutter`/`dart`) — so `melos run <name>` is safe
+# even without an `fvm exec` prefix; the pin is enforced by the script
+# itself, not by whoever remembers to type the prefix correctly. Run
+# `melos run doctor` right after cloning to confirm FVM is actually set up.
+melos:
+  scripts:
+    doctor:
+      run: fvm dart run tool/verify_fvm.dart
+      description: "WAJIB dijalankan pertama kali setelah clone repo ini"
+    get:
+      run: fvm flutter pub get
+      description: "Resolve semua dependency workspace dalam satu langkah (Pub Workspaces otomatis link seluruh package packages/* dan apps/mobile sekaligus)"
+    analyze:
+      run: melos exec -- fvm dart analyze .
+      description: "Analyze semua package"
+    format:
+      run: melos exec -- fvm dart format --set-exit-if-changed .
+      description: "Cek format semua package"
+    test:
+      run: melos exec --dir-exists=test -- fvm flutter test
+      description: "Jalankan test di package yang punya folder test/ (fvm flutter test bekerja untuk package pure-Dart maupun Flutter)"
+    gen:
+      # `fvm flutter pub run` here, not `fvm dart run` — dart-lang/sdk#62808
+      # (open): `dart run` doesn't set FLUTTER_ROOT/PUB_ENVIRONMENT, so pub
+      # can't resolve `sdk: flutter` deps for any package that needs the
+      # Flutter SDK (feature_home, authentication, design_system, mobile),
+      # failing with "Because X requires the Flutter SDK, version solving
+      # failed." See ADR-008 — this masked itself on dev machines with an
+      # ambient FLUTTER_ROOT already set, only surfaced on a clean CI runner.
+      #
+      # `&& fvm dart format packages apps tool` afterward: injectable's
+      # micro-package module output (*_module.module.dart) isn't quite
+      # `dart format`-clean the moment build_runner writes it — every fresh
+      # `gen` needs one format pass to converge, or the separate `format`
+      # check (--set-exit-if-changed, meant to gate hand-written code) fails
+      # on generated files nobody hand-maintains. Explicit source roots
+      # instead of `.` because `.` would also descend into
+      # bricks/feature/__brick__/, whose mustache templates aren't valid
+      # Dart — dart format dies on them (caught by ADR-009's throwaway test).
+      run: melos exec --order-dependents --depends-on="build_runner" -- fvm flutter pub run build_runner build --delete-conflicting-outputs && fvm dart format packages apps tool
+      description: "Jalankan codegen (freezed, injectable, json_serializable) di package yang butuh, urut dependency graph (core sebelum shared) supaya micro-package injectable core selalu fresh sebelum shared membacanya"
+    clean:
+      run: melos exec -- fvm flutter clean
+      description: "OVERRIDE built-in melos clean -- pastikan proses clean tiap package pakai SDK yang di-pin FVM, bukan flutter global yang mungkin beda versi"
+    upgrade:
+      run: fvm flutter pub upgrade
+      description: "Upgrade dependency ke versi terbaru yang masih sesuai constraint pubspec"
+    outdated:
+      run: fvm flutter pub outdated
+      description: "Cek paket yang sudah ada versi lebih baru di luar constraint saat ini -- jalankan tiap kuartal sesuai §33 ARCHITECTURE.md (Long-Term Maintenance Strategy), JANGAN auto-upgrade tanpa baca changelog masing-masing paket dulu"
+    run:dev:
+      run: melos exec --scope="mobile" -- fvm flutter run --flavor dev -t lib/main_dev.dart
+      description: "Jalankan app flavor development"
+    run:dev:web:
+      run: melos exec --scope="mobile" -- fvm flutter run --dart-define=FLAVOR=dev -t lib/main_dev.dart -d chrome
+      description: "Jalankan app di mode development (web/Chrome)"
+    run:staging:
+      run: melos exec --scope="mobile" -- fvm flutter run --flavor staging -t lib/main_staging.dart
+      description: "Jalankan app flavor staging"
+    run:prod:
+      run: melos exec --scope="mobile" -- fvm flutter run --flavor prod -t lib/main_prod.dart
+      description: "Jalankan app flavor production -- HATI-HATI, biasanya connect ke API production asli, bukan untuk uji coba sembarangan"

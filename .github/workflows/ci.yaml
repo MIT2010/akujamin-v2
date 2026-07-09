@@ -1,0 +1,43 @@
+name: CI
+on:
+  push:
+    branches: [master]
+  pull_request:
+jobs:
+  analyze_test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      # Bootstrap-only Dart SDK — its version is irrelevant, it exists solely
+      # to run `dart pub global activate fvm`. This replaces the old
+      # two-mechanism setup (flutter-fvm-config-action + flutter-action
+      # installing Flutter independently, which only *happened* to match the
+      # fvm pin) with a single source of truth: `.fvmrc`, read only by fvm.
+      # Every analyze/test/gen step below runs through the SDK `fvm install`
+      # fetches from that file, never this bootstrap one (ADR-006).
+      - uses: dart-lang/setup-dart@v1
+      - run: dart pub global activate fvm
+      - run: echo "$HOME/.pub-cache/bin" >> "$GITHUB_PATH"
+      - run: fvm install
+      # Hard gate: if the pinned version isn't genuinely the one fvm
+      # resolves, stop the whole pipeline here instead of silently falling
+      # through to analyze/test/gen against the wrong SDK.
+      - run: fvm dart run tool/verify_fvm.dart
+      # ADR-008 follow-up #2: put the *real* Flutter SDK's bin/ (not just
+      # bin/cache/dart-sdk/bin, which is all `fvm dart`/`fvm flutter` use)
+      # on PATH. That directory has Flutter's own `dart`/`flutter` wrapper
+      # scripts, which set FLUTTER_ROOT/PUB_ENVIRONMENT before running the
+      # real SDK binary — `fvm dart run` bypasses that wrapper entirely
+      # (dart-lang/sdk#62808), which is why any bare `dart` call anywhere
+      # in this job's process tree, including melos's own internal
+      # self-invocation for --order-dependents, can fail to resolve an
+      # `sdk: flutter` dependency. Prepending the wrapper's directory to
+      # PATH fixes it at the source instead of routing every individual
+      # tool through `flutter pub run`.
+      - run: echo "$(fvm flutter --version --machine | jq -r '.flutterRoot')/bin" >> "$GITHUB_PATH"
+      - run: dart pub global activate melos
+      - run: fvm flutter pub get
+      - run: melos run gen
+      - run: melos run analyze
+      - run: melos run format
+      - run: melos run test

@@ -1,0 +1,14 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "mobile-dev-web",
+      "runtimeExecutable": "cmd",
+      "runtimeArgs": [
+        "/c",
+        "cd apps\\mobile && fvm flutter run -d web-server --web-port=8765 --web-hostname=127.0.0.1 -t lib/main_dev.dart --dart-define=API_BASE_URL=https://api.dummy.test"
+      ],
+      "port": 8765
+    }
+  ]
+}
