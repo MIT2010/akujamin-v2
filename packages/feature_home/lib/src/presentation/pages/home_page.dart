@@ -35,6 +35,13 @@ class HomeView extends StatelessWidget {
         title: const Text('Home'),
         actions: [
           IconButton(
+            icon: const Icon(Icons.help_outline),
+            tooltip: 'FAQ',
+            // Same route-string navigation as the profile button below —
+            // features never depend on each other directly (§5).
+            onPressed: () => context.push('/about'),
+          ),
+          IconButton(
             icon: const Icon(Icons.person),
             tooltip: 'Profile',
             // Navigation by route string, not by importing feature_profile —

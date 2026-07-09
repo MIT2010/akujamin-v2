@@ -24,7 +24,7 @@ Status values: **belum** (not started) · **proses** (in progress) ·
 
 | Feature | Status | Started | Done | Notes |
 |---|---|---|---|---|
-| `about` | belum | — | — | **Recommended pilot** (AUDIT.md §4) — pending confirmation before any code is written |
+| `about` | selesai | 2026-07-09 | 2026-07-09 | Pilot, first migrated feature. `packages/feature_about`, wired into `apps/mobile` (ADR-010: pubspec dep, `ExternalModule`, `/about` route, FAQ icon on Home). QA: [docs/qa/about.md](docs/qa/about.md) — real network + widget verification; screenshot-based proof wasn't possible in this environment (session-isolation + a `toImage()` hang, both documented there), so evidence is assertion-based against real data instead. Deferred: real markdown rendering (still plain `Text`), network-failure/empty-list paths reuse already-tested `core` code and weren't re-exercised. |
 | `onboarding` | belum | — | — | Local-only (no network), leaf |
 | `dashboard` | belum | — | — | Hub — consumes about/payment/auth; migrate after its dependencies |
 | `auth` | belum | — | — | Foundational, highest fan-in — maps onto the kit's existing `authentication` package rather than a new one |

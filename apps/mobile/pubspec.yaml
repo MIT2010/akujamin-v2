@@ -16,6 +16,8 @@ dependencies:
     path: ../../packages/core
   design_system:
     path: ../../packages/design_system
+  feature_about:
+    path: ../../packages/feature_about
   feature_home:
     path: ../../packages/feature_home
   feature_profile:
