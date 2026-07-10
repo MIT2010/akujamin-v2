@@ -5,6 +5,10 @@ import 'package:mocktail/mocktail.dart';
 
 class _MockFlutterSecureStorage extends Mock implements FlutterSecureStorage {}
 
+const _accessTokenKey = 'com.akujamin.mobile.access_token';
+const _refreshTokenKey = 'com.akujamin.mobile.refresh_token';
+const _cachedUserKey = 'com.akujamin.mobile.cached_user';
+
 void main() {
   late _MockFlutterSecureStorage storage;
   late SecureTokenStorage tokenStorage;
@@ -25,19 +29,19 @@ void main() {
     await tokenStorage.saveTokens(access: 'access-1', refresh: 'refresh-1');
 
     verify(
-      () => storage.write(key: 'access_token', value: 'access-1'),
+      () => storage.write(key: _accessTokenKey, value: 'access-1'),
     ).called(1);
     verify(
-      () => storage.write(key: 'refresh_token', value: 'refresh-1'),
+      () => storage.write(key: _refreshTokenKey, value: 'refresh-1'),
     ).called(1);
   });
 
   test('accessToken/refreshToken read straight from storage', () async {
     when(
-      () => storage.read(key: 'access_token'),
+      () => storage.read(key: _accessTokenKey),
     ).thenAnswer((_) async => 'access-1');
     when(
-      () => storage.read(key: 'refresh_token'),
+      () => storage.read(key: _refreshTokenKey),
     ).thenAnswer((_) async => 'refresh-1');
 
     expect(await tokenStorage.accessToken, 'access-1');
@@ -56,14 +60,14 @@ void main() {
     String? stored;
     when(
       () => storage.write(
-        key: 'cached_user',
+        key: _cachedUserKey,
         value: any(named: 'value'),
       ),
     ).thenAnswer((invocation) async {
       stored = invocation.namedArguments[#value] as String;
     });
     when(
-      () => storage.read(key: 'cached_user'),
+      () => storage.read(key: _cachedUserKey),
     ).thenAnswer((_) async => stored);
 
     const user = User(id: '1', email: 'a@example.com', role: 'admin');
@@ -74,7 +78,7 @@ void main() {
   });
 
   test('getCachedUser returns null when nothing is cached', () async {
-    when(() => storage.read(key: 'cached_user')).thenAnswer((_) async => null);
+    when(() => storage.read(key: _cachedUserKey)).thenAnswer((_) async => null);
 
     expect(await tokenStorage.getCachedUser(), isNull);
   });

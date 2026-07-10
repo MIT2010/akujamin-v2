@@ -25,9 +25,22 @@ class SecureTokenStorage implements TokenProvider {
   final FlutterSecureStorage _storage;
   SecureTokenStorage(this._storage);
 
-  static const _accessTokenKey = 'access_token';
-  static const _refreshTokenKey = 'refresh_token';
-  static const _cachedUserKey = 'cached_user';
+  // Prefixed, not just 'access_token': Android/iOS/macOS sandbox secure
+  // storage per app automatically (Keychain access group / app-private
+  // Keystore), but Windows does not -- flutter_secure_storage_windows
+  // writes each key as a Windows Credential Manager entry named literally
+  // after the key string, with no per-app namespacing at all (confirmed by
+  // reading flutter_secure_storage_windows_plugin.cpp: TargetName is set
+  // directly from the key). Two different Flutter projects on the same
+  // Windows account that both call `write(key: 'access_token', ...)`
+  // collide in the *same* global credential, regardless of bundle
+  // identifier -- this prefix is what actually prevents that on Windows,
+  // not the platform bundle IDs (which fix the equivalent Android/iOS/
+  // macOS non-issue but do nothing here).
+  static const _keyPrefix = 'com.akujamin.mobile.';
+  static const _accessTokenKey = '${_keyPrefix}access_token';
+  static const _refreshTokenKey = '${_keyPrefix}refresh_token';
+  static const _cachedUserKey = '${_keyPrefix}cached_user';
 
   @override
   Future<String?> get accessToken => _storage.read(key: _accessTokenKey);
