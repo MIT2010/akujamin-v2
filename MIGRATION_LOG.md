@@ -20,6 +20,35 @@ Status values: **belum** (not started) · **proses** (in progress) ·
 
 ---
 
+## ⚠ Open decision: write-path + UseCase (§21/ADR-004) still untested
+
+**Keputusan write-path + UseCase (§21/ADR-004) masih BELUM teruji di
+akujamin-v2 setelah 2 fitur (`about`, `onboarding` — keduanya kasus
+"tanpa UseCase").** Both landed as plain repository pass-throughs because
+that's what their actual old-app usecases were (`GetAboutUsecase`,
+`GetIsFirstLaunchUsecase`/`SetIsFirstLaunchUsecase` are all one-line
+delegations) — a correct call each time, not an avoidance, but it means
+the "yes, this needs a UseCase" branch of §21/ADR-004 has zero real
+evidence in this project so far. `feature_profile` in the starter kit has
+one (`UpdateProfileUseCase`), but that's a synthetic reference example,
+not something proven against this app's actual legacy code.
+
+**Mini-audit fitur #3 WAJIB memprioritaskan kandidat dengan operasi tulis
+nyata yang genuinely leaf, bahkan kalau itu berarti menunggu sebagian
+kecil dari fitur besar (`auth`/`payment`) siap diekstrak sendiri, bukan
+terus menunda.** Concretely: the next mini-audit must treat "does this
+candidate have a real network write path" as a harder constraint than
+"is this candidate a whole, already-independent feature" — if no whole
+feature qualifies again, actively look for an extractable slice (small
+POST/PUT endpoint that's genuinely its own bounded thing a user does, not
+a step embedded in a bigger flow — the `sendOTP`/voucher candidates
+rejected during the onboarding mini-audit failed exactly that test, see
+AUDIT.md §6) rather than reaching for another local-only or read-only
+feature by default. This line exists so that decision doesn't keep
+getting pushed to "next time" indefinitely.
+
+---
+
 ## User-facing features
 
 | Feature | Status | Started | Done | Notes |

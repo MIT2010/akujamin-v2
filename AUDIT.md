@@ -52,7 +52,7 @@ existing tests — see §5.
 | **dashboard** | 13 | Authenticated hub: home/account/history + nav/about/voucher blocs | consumes about + payment(voucher) + auth(profile) | High (hub) |
 | **auth** | 32 | Login/OTP/register + selfie/KTP (camera+face) | **everything depends on it** | High fan-in (foundational) |
 | **counseling** | 19 | Chat with psychologist — **realtime** | uses websocket | Excluded (realtime) |
-| **payment** | 33 | Payment + voucher flow | coupled w/ dashboard | High (large) |
+| **payment** | 33 | Payment + voucher flow | coupled w/ dashboard | High (large). **§6 finding: "voucher" is not a discount code — do not treat as a small/independent sub-slice** |
 | **test** | 42 | The core psych test — face-proctored, timed | uses camera+face+websocket+screenshot | Highest (migrate last) |
 
 ### Infrastructure/service features (no pages — cross-cutting)
@@ -208,6 +208,42 @@ capability:
   the shared form service) rather than ported twice — exactly the "hidden
   shared logic dragged along per feature" trap
   [docs/MIGRATION_PLAYBOOK.md](docs/MIGRATION_PLAYBOOK.md) §1 warns about.
+
+---
+
+## 6. Follow-up (2026-07-10) — the "voucher" trap in `payment`
+
+Found while mini-auditing candidates for the second pilot (see
+MIGRATION_LOG.md for that decision). `payment`'s voucher usecases
+(`getVouchers`/`createVoucher`/`cancelVoucher`/`checkVoucher`, 4 small
+files) initially looked like a promising low-risk, real-write-path
+sub-slice to extract ahead of the rest of `payment`. **They are not.**
+
+The actual API endpoints give it away — read from
+`payment_api_service.dart`, not guessed:
+`createVoucher` → `POST /api/tes/create` ("create **test**"),
+`cancelVoucher` → `GET /api/tes/batal-tes` ("cancel **test**"),
+`checkVoucher` → `GET /api/tes/cek-voucher`. **"Voucher" is not a discount
+code — it's the test-session entity itself.** `VoucherEntity`'s fields
+confirm it: `psychologist`, `testAttempt`, `testResult`, `certificateUrl`.
+Filed under `payment/` folder-wise, but semantically it's the entry point
+into the app's core value proposition (taking the psychology test),
+entangled with `test` (test attempts/results) and `counseling`
+(psychologist assignment) — neither of which exist in this repo yet.
+
+**Why this matters for future audits:** the small usecase/file count made
+it *look* like a safe, leaf, independent extraction — it isn't, once you
+read what the entity actually models and which endpoints it calls. File
+count and usecase count are not reliable proxies for risk; check the
+entity's fields and the literal API paths before trusting a "looks small"
+read.
+
+**Binding guidance for whenever `payment`/`test`/`counseling` are
+audited for real migration:** treat `payment`'s voucher/test-session
+concept, `test`, and `counseling` as **one entangled unit for planning
+purposes**, not three independently schedulable features. Don't repeat
+this mini-audit's near-mistake of treating `payment` as chooseable in
+isolation just because its *own* folder's usecases look small.
 
 ---
 
