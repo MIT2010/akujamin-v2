@@ -7,6 +7,7 @@ export 'src/data/models/user_model.dart';
 export 'src/data/models/user_profile_model.dart';
 export 'src/data/repositories/auth_repository_impl.dart';
 export 'src/di/register_module.dart';
+export 'src/domain/entities/session_profile.dart';
 export 'src/domain/entities/user.dart';
 export 'src/domain/repositories/auth_repository.dart';
 export 'src/domain/usecases/login_usecase.dart';

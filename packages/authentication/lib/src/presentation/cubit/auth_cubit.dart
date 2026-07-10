@@ -1,6 +1,7 @@
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:injectable/injectable.dart';
 
+import '../../domain/entities/session_profile.dart';
 import '../../domain/entities/user.dart';
 import '../../domain/repositories/auth_repository.dart';
 import 'auth_state.dart';
@@ -20,17 +21,22 @@ class AuthCubit extends Cubit<AuthState> {
 
   Future<void> _restoreCachedSession() async {
     final user = await _repository.getCachedUser();
-    emit(
-      user != null
-          ? AuthState.authenticated(user)
-          : const AuthState.unauthenticated(),
-    );
+    if (user == null) {
+      emit(const AuthState.unauthenticated());
+      return;
+    }
+    final sessionProfile = await _repository.getCachedSessionProfile();
+    emit(AuthState.authenticated(user, sessionProfile: sessionProfile));
   }
 
-  /// Called by [LoginCubit] right after a successful login — the tokens are
-  /// already persisted by [AuthRepositoryImpl.login] by this point, this
-  /// just makes the in-memory session (and therefore the router) catch up.
-  void setAuthenticated(User user) => emit(AuthState.authenticated(user));
+  /// Called by [LoginCubit]/`OtpLoginCubit` right after a successful login
+  /// — the tokens (and, for the OTP flow, the session profile) are already
+  /// persisted by [AuthRepositoryImpl] by this point, this just makes the
+  /// in-memory session (and therefore the router) catch up. `sessionProfile`
+  /// stays `null` for [LoginCubit]'s email/password flow, which never had
+  /// one.
+  void setAuthenticated(User user, {SessionProfile? sessionProfile}) =>
+      emit(AuthState.authenticated(user, sessionProfile: sessionProfile));
 
   Future<void> logout() async {
     await _repository.logout();

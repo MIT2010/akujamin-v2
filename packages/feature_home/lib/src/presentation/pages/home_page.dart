@@ -53,7 +53,7 @@ class HomeView extends StatelessWidget {
           ),
           IconButton(
             icon: const Icon(Icons.person),
-            tooltip: 'Profile',
+            tooltip: 'Akun',
             // Navigation by route string, not by importing feature_profile —
             // features never depend on each other directly (§5); the route
             // table in apps/mobile is the only place that knows both.

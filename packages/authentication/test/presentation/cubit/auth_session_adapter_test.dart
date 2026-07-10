@@ -18,6 +18,9 @@ void main() {
   test('status reflects AuthCubit.authenticated as isAuthenticated with the '
       "user's role", () async {
     when(() => repository.getCachedUser()).thenAnswer((_) async => user);
+    when(
+      () => repository.getCachedSessionProfile(),
+    ).thenAnswer((_) async => null);
     final authCubit = AuthCubit(repository);
     await pumpEventQueue();
 

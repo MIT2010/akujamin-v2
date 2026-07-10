@@ -55,8 +55,9 @@ class OtpLoginCubit extends Cubit<OtpLoginState> {
           expiresAt: expiresAt,
         ),
       ),
-      (user) {
-        _authCubit.setAuthenticated(user);
+      (value) {
+        final (user, sessionProfile) = value;
+        _authCubit.setAuthenticated(user, sessionProfile: sessionProfile);
         emit(OtpLoginState.success(user));
       },
     );

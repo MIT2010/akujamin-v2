@@ -1,6 +1,7 @@
 import 'package:core/core.dart';
 import 'package:injectable/injectable.dart';
 
+import '../../domain/entities/session_profile.dart';
 import '../../domain/entities/user.dart';
 import '../../domain/repositories/auth_repository.dart';
 import '../datasources/auth_remote_datasource.dart';
@@ -41,10 +42,11 @@ class AuthRepositoryImpl implements AuthRepository {
 
   /// Three-step orchestration mirroring [login]'s shape: verify → persist
   /// the (single) access token → fetch the profile the login-otp response
-  /// doesn't carry → persist the user. Both `fold`s are async for the same
-  /// reason [login]'s is.
+  /// doesn't carry → persist the user *and* the session profile (as two
+  /// separate objects — see [SessionProfile]'s doc comment). Both `fold`s
+  /// are async for the same reason [login]'s is.
   @override
-  Future<Result<Failure, User>> verifyOtp({
+  Future<Result<Failure, (User, SessionProfile)>> verifyOtp({
     required String phoneNumber,
     required String otpCode,
   }) async {
@@ -58,8 +60,10 @@ class AuthRepositoryImpl implements AuthRepository {
         profile,
       ) async {
         final user = profile.toEntity();
+        final sessionProfile = profile.toSessionProfile();
         await _tokenStorage.saveUser(user);
-        return Ok(user);
+        await _tokenStorage.saveSessionProfile(sessionProfile);
+        return Ok((user, sessionProfile));
       });
     });
   }
@@ -72,4 +76,8 @@ class AuthRepositoryImpl implements AuthRepository {
 
   @override
   Future<User?> getCachedUser() => _tokenStorage.getCachedUser();
+
+  @override
+  Future<SessionProfile?> getCachedSessionProfile() =>
+      _tokenStorage.getCachedSessionProfile();
 }

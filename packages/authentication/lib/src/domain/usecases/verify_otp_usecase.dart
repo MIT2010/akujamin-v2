@@ -1,6 +1,7 @@
 import 'package:core/core.dart';
 import 'package:injectable/injectable.dart';
 
+import '../entities/session_profile.dart';
 import '../entities/user.dart';
 import '../repositories/auth_repository.dart';
 
@@ -10,14 +11,22 @@ import '../repositories/auth_repository.dart';
 /// is the project's first UseCase covering a genuine write path with real
 /// pre-network validation — see MIGRATION_LOG.md's "write-path + UseCase
 /// still untested" note, which this (and [SendOtpUseCase]) resolves.
+///
+/// Returns `(User, SessionProfile)`, not just `User`: [AuthRepository]'s
+/// `verifyOtp` splits the one `/auth/me` fetch into the auth/session
+/// identity and the display-only fields — see [SessionProfile]'s doc
+/// comment for why they're deliberately kept apart.
 @injectable
-class VerifyOtpUseCase implements UseCase<User, VerifyOtpParams> {
+class VerifyOtpUseCase
+    implements UseCase<(User, SessionProfile), VerifyOtpParams> {
   final AuthRepository _repository;
 
   VerifyOtpUseCase(this._repository);
 
   @override
-  Future<Result<Failure, User>> call(VerifyOtpParams params) async {
+  Future<Result<Failure, (User, SessionProfile)>> call(
+    VerifyOtpParams params,
+  ) async {
     if (params.phoneNumber.isEmpty) {
       return const Err(ValidationFailure('Nomor telepon tidak boleh kosong.'));
     }

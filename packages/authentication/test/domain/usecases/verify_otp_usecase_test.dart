@@ -15,6 +15,11 @@ void main() {
   });
 
   const user = User(id: '1', email: 'a@example.com', role: 'admin');
+  const sessionProfile = SessionProfile(
+    avatar: 'https://example.com/a.png',
+    name: 'Ani',
+    nik: '1234567890123456',
+  );
 
   test(
     'prefixes the phone number with 62 and delegates to the repository',
@@ -24,7 +29,7 @@ void main() {
           phoneNumber: '6281234567890',
           otpCode: '123456',
         ),
-      ).thenAnswer((_) async => const Ok(user));
+      ).thenAnswer((_) async => const Ok((user, sessionProfile)));
 
       final result = await useCase(
         const VerifyOtpParams(phoneNumber: '81234567890', otpCode: '123456'),
@@ -48,7 +53,10 @@ void main() {
       );
 
       expect(result.isErr, isTrue);
-      expect((result as Err<Failure, User>).failure, isA<ValidationFailure>());
+      expect(
+        (result as Err<Failure, (User, SessionProfile)>).failure,
+        isA<ValidationFailure>(),
+      );
       verifyNever(
         () => repository.verifyOtp(
           phoneNumber: any(named: 'phoneNumber'),
@@ -66,7 +74,10 @@ void main() {
       );
 
       expect(result.isErr, isTrue);
-      expect((result as Err<Failure, User>).failure, isA<ValidationFailure>());
+      expect(
+        (result as Err<Failure, (User, SessionProfile)>).failure,
+        isA<ValidationFailure>(),
+      );
       verifyNever(
         () => repository.verifyOtp(
           phoneNumber: any(named: 'phoneNumber'),

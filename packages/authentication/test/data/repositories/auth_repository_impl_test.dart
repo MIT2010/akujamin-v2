@@ -14,6 +14,7 @@ void main() {
 
   setUpAll(() {
     registerFallbackValue(const User(id: '', email: '', role: ''));
+    registerFallbackValue(const SessionProfile(avatar: '', name: '', nik: ''));
   });
 
   setUp(() {
@@ -103,33 +104,41 @@ void main() {
       id: '1',
       email: 'a@example.com',
       role: 'admin',
+      name: 'Ani',
+      avatar: 'https://example.com/a.png',
+      nik: '1234567890123456',
     );
 
-    test(
-      'saves the access token and the profile, then returns Ok on success',
-      () async {
-        when(
-          () => remote.verifyOtp('6281234567890', '123456'),
-        ).thenAnswer((_) async => const Ok('otp-access-1'));
-        when(
-          () => tokenStorage.saveAccessToken(any()),
-        ).thenAnswer((_) async {});
-        when(
-          () => remote.getProfile(),
-        ).thenAnswer((_) async => const Ok(profile));
-        when(() => tokenStorage.saveUser(any())).thenAnswer((_) async {});
+    test('saves the access token, the user and the session profile, then '
+        'returns Ok on success', () async {
+      when(
+        () => remote.verifyOtp('6281234567890', '123456'),
+      ).thenAnswer((_) async => const Ok('otp-access-1'));
+      when(() => tokenStorage.saveAccessToken(any())).thenAnswer((_) async {});
+      when(
+        () => remote.getProfile(),
+      ).thenAnswer((_) async => const Ok(profile));
+      when(() => tokenStorage.saveUser(any())).thenAnswer((_) async {});
+      when(
+        () => tokenStorage.saveSessionProfile(any()),
+      ).thenAnswer((_) async {});
 
-        final result = await repository.verifyOtp(
-          phoneNumber: '6281234567890',
-          otpCode: '123456',
-        );
+      final result = await repository.verifyOtp(
+        phoneNumber: '6281234567890',
+        otpCode: '123456',
+      );
 
-        expect(result.isOk, isTrue);
-        expect((result as Ok<Failure, User>).value.id, '1');
-        verify(() => tokenStorage.saveAccessToken('otp-access-1')).called(1);
-        verify(() => tokenStorage.saveUser(any())).called(1);
-      },
-    );
+      expect(result.isOk, isTrue);
+      final (user, sessionProfile) =
+          (result as Ok<Failure, (User, SessionProfile)>).value;
+      expect(user.id, '1');
+      expect(sessionProfile.nik, '1234567890123456');
+      expect(sessionProfile.avatar, 'https://example.com/a.png');
+      expect(sessionProfile.name, 'Ani');
+      verify(() => tokenStorage.saveAccessToken('otp-access-1')).called(1);
+      verify(() => tokenStorage.saveUser(any())).called(1);
+      verify(() => tokenStorage.saveSessionProfile(any())).called(1);
+    });
 
     test(
       'returns Err and never fetches the profile when verify fails',
@@ -145,7 +154,7 @@ void main() {
 
         expect(result.isErr, isTrue);
         expect(
-          (result as Err<Failure, User>).failure,
+          (result as Err<Failure, (User, SessionProfile)>).failure,
           isA<UnauthorizedFailure>(),
         );
         verifyNever(() => tokenStorage.saveAccessToken(any()));
@@ -173,6 +182,7 @@ void main() {
 
         expect(result.isErr, isTrue);
         verifyNever(() => tokenStorage.saveUser(any()));
+        verifyNever(() => tokenStorage.saveSessionProfile(any()));
       },
     );
   });

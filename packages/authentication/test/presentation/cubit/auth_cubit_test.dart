@@ -17,6 +17,9 @@ void main() {
   group('AuthCubit — restores the cached session at construction', () {
     test('emits authenticated(user) when a user is cached', () async {
       when(() => repository.getCachedUser()).thenAnswer((_) async => user);
+      when(
+        () => repository.getCachedSessionProfile(),
+      ).thenAnswer((_) async => null);
 
       final cubit = AuthCubit(repository);
       await pumpEventQueue();
@@ -48,6 +51,9 @@ void main() {
 
   test('logout clears the repository and emits unauthenticated()', () async {
     when(() => repository.getCachedUser()).thenAnswer((_) async => user);
+    when(
+      () => repository.getCachedSessionProfile(),
+    ).thenAnswer((_) async => null);
     when(() => repository.logout()).thenAnswer((_) async => const Ok(null));
     final cubit = AuthCubit(repository);
     await pumpEventQueue();

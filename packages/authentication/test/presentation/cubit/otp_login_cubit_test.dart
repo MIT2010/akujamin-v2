@@ -17,6 +17,11 @@ void main() {
 
   final expiresAt = DateTime.parse('2026-07-10T12:00:00.000Z');
   const user = User(id: '1', email: 'a@example.com', role: 'admin');
+  const sessionProfile = SessionProfile(
+    avatar: 'https://example.com/a.png',
+    name: 'Ani',
+    nik: '1234567890123456',
+  );
 
   setUpAll(() {
     registerFallbackValue(const SendOtpParams(phoneNumber: ''));
@@ -28,7 +33,12 @@ void main() {
     sendOtpUseCase = _MockSendOtpUseCase();
     verifyOtpUseCase = _MockVerifyOtpUseCase();
     authCubit = _MockAuthCubit();
-    when(() => authCubit.setAuthenticated(any())).thenReturn(null);
+    when(
+      () => authCubit.setAuthenticated(
+        any(),
+        sessionProfile: any(named: 'sessionProfile'),
+      ),
+    ).thenReturn(null);
   });
 
   blocTest<OtpLoginCubit, OtpLoginState>(
@@ -65,7 +75,7 @@ void main() {
     build: () {
       when(
         () => verifyOtpUseCase(any()),
-      ).thenAnswer((_) async => const Ok(user));
+      ).thenAnswer((_) async => const Ok((user, sessionProfile)));
       return OtpLoginCubit(sendOtpUseCase, verifyOtpUseCase, authCubit);
     },
     act: (cubit) => cubit.verifyOtp(
@@ -81,7 +91,9 @@ void main() {
       OtpLoginState.success(user),
     ],
     verify: (_) {
-      verify(() => authCubit.setAuthenticated(user)).called(1);
+      verify(
+        () => authCubit.setAuthenticated(user, sessionProfile: sessionProfile),
+      ).called(1);
     },
   );
 
@@ -111,7 +123,12 @@ void main() {
       ),
     ],
     verify: (_) {
-      verifyNever(() => authCubit.setAuthenticated(any()));
+      verifyNever(
+        () => authCubit.setAuthenticated(
+          any(),
+          sessionProfile: any(named: 'sessionProfile'),
+        ),
+      );
     },
   );
 

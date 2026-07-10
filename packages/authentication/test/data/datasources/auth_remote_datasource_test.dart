@@ -134,12 +134,24 @@ void main() {
       final parser =
           invocation.namedArguments[#parser]
               as UserProfileModel Function(dynamic);
-      return Ok(parser({'id': '1', 'email': 'a@example.com', 'role': 'admin'}));
+      return Ok(
+        parser({
+          'id': '1',
+          'email': 'a@example.com',
+          'role': 'admin',
+          'name': 'Ani',
+          'avatars': 'https://example.com/a.png',
+          'nik': '1234567890123456',
+        }),
+      );
     });
 
     final result = await dataSource.getProfile();
 
     expect(result.isOk, isTrue);
-    expect((result as Ok<Failure, UserProfileModel>).value.id, '1');
+    final value = (result as Ok<Failure, UserProfileModel>).value;
+    expect(value.id, '1');
+    expect(value.avatar, 'https://example.com/a.png');
+    expect(value.nik, '1234567890123456');
   });
 }

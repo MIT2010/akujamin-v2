@@ -4,6 +4,7 @@ import 'package:core/core.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:injectable/injectable.dart';
 
+import '../../domain/entities/session_profile.dart';
 import '../../domain/entities/user.dart';
 
 /// §24's local-cache example, concretely: `flutter_secure_storage` needs
@@ -41,6 +42,7 @@ class SecureTokenStorage implements TokenProvider {
   static const _accessTokenKey = '${_keyPrefix}access_token';
   static const _refreshTokenKey = '${_keyPrefix}refresh_token';
   static const _cachedUserKey = '${_keyPrefix}cached_user';
+  static const _sessionProfileKey = '${_keyPrefix}session_profile';
 
   @override
   Future<String?> get accessToken => _storage.read(key: _accessTokenKey);
@@ -89,6 +91,35 @@ class SecureTokenStorage implements TokenProvider {
       id: json['id'] as String,
       email: json['email'] as String,
       role: json['role'] as String,
+    );
+  }
+
+  /// Deliberately its own key, not folded into [saveUser]'s JSON — see
+  /// [SessionProfile]'s doc comment for why `nik` stays out of [User]
+  /// entirely. Same `_storage` instance as everything else in this class,
+  /// so [clear] (`_storage.deleteAll()`) removes this too — proven, not
+  /// assumed, in `test/data/datasources/secure_token_storage_test.dart`'s
+  /// real-storage-backed clear() test.
+  Future<void> saveSessionProfile(SessionProfile profile) {
+    return _storage.write(
+      key: _sessionProfileKey,
+      value: jsonEncode({
+        'avatar': profile.avatar,
+        'name': profile.name,
+        'nik': profile.nik,
+      }),
+    );
+  }
+
+  Future<SessionProfile?> getCachedSessionProfile() async {
+    final raw = await _storage.read(key: _sessionProfileKey);
+    if (raw == null) return null;
+
+    final json = jsonDecode(raw) as Map<String, dynamic>;
+    return SessionProfile(
+      avatar: json['avatar'] as String,
+      name: json['name'] as String,
+      nik: json['nik'] as String,
     );
   }
 }
