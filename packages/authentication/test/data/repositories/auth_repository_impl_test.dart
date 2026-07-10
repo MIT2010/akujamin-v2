@@ -84,6 +84,99 @@ void main() {
     });
   });
 
+  group('AuthRepositoryImpl.sendOtp', () {
+    test('delegates straight to the remote data source', () async {
+      final expiresAt = DateTime.parse('2026-07-10T12:00:00.000Z');
+      when(
+        () => remote.sendOtp('6281234567890'),
+      ).thenAnswer((_) async => Ok(expiresAt));
+
+      final result = await repository.sendOtp(phoneNumber: '6281234567890');
+
+      expect(result.isOk, isTrue);
+      expect((result as Ok<Failure, DateTime>).value, expiresAt);
+    });
+  });
+
+  group('AuthRepositoryImpl.verifyOtp', () {
+    const profile = UserProfileModel(
+      id: '1',
+      email: 'a@example.com',
+      role: 'admin',
+    );
+
+    test(
+      'saves the access token and the profile, then returns Ok on success',
+      () async {
+        when(
+          () => remote.verifyOtp('6281234567890', '123456'),
+        ).thenAnswer((_) async => const Ok('otp-access-1'));
+        when(
+          () => tokenStorage.saveAccessToken(any()),
+        ).thenAnswer((_) async {});
+        when(
+          () => remote.getProfile(),
+        ).thenAnswer((_) async => const Ok(profile));
+        when(() => tokenStorage.saveUser(any())).thenAnswer((_) async {});
+
+        final result = await repository.verifyOtp(
+          phoneNumber: '6281234567890',
+          otpCode: '123456',
+        );
+
+        expect(result.isOk, isTrue);
+        expect((result as Ok<Failure, User>).value.id, '1');
+        verify(() => tokenStorage.saveAccessToken('otp-access-1')).called(1);
+        verify(() => tokenStorage.saveUser(any())).called(1);
+      },
+    );
+
+    test(
+      'returns Err and never fetches the profile when verify fails',
+      () async {
+        when(
+          () => remote.verifyOtp(any(), any()),
+        ).thenAnswer((_) async => const Err(UnauthorizedFailure()));
+
+        final result = await repository.verifyOtp(
+          phoneNumber: '6281234567890',
+          otpCode: 'wrong',
+        );
+
+        expect(result.isErr, isTrue);
+        expect(
+          (result as Err<Failure, User>).failure,
+          isA<UnauthorizedFailure>(),
+        );
+        verifyNever(() => tokenStorage.saveAccessToken(any()));
+        verifyNever(() => remote.getProfile());
+      },
+    );
+
+    test(
+      'returns Err when the token verifies but the profile fetch fails',
+      () async {
+        when(
+          () => remote.verifyOtp(any(), any()),
+        ).thenAnswer((_) async => const Ok('otp-access-1'));
+        when(
+          () => tokenStorage.saveAccessToken(any()),
+        ).thenAnswer((_) async {});
+        when(
+          () => remote.getProfile(),
+        ).thenAnswer((_) async => const Err(NetworkFailure()));
+
+        final result = await repository.verifyOtp(
+          phoneNumber: '6281234567890',
+          otpCode: '123456',
+        );
+
+        expect(result.isErr, isTrue);
+        verifyNever(() => tokenStorage.saveUser(any()));
+      },
+    );
+  });
+
   group('AuthRepositoryImpl.logout', () {
     test('clears token storage and returns Ok', () async {
       when(() => tokenStorage.clear()).thenAnswer((_) async {});

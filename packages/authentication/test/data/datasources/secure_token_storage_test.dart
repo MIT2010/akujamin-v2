@@ -48,6 +48,27 @@ void main() {
     expect(await tokenStorage.refreshToken, 'refresh-1');
   });
 
+  test('saveAccessToken writes only the access-token key', () async {
+    when(
+      () => storage.write(
+        key: any(named: 'key'),
+        value: any(named: 'value'),
+      ),
+    ).thenAnswer((_) async {});
+
+    await tokenStorage.saveAccessToken('otp-access-1');
+
+    verify(
+      () => storage.write(key: _accessTokenKey, value: 'otp-access-1'),
+    ).called(1);
+    verifyNever(
+      () => storage.write(
+        key: _refreshTokenKey,
+        value: any(named: 'value'),
+      ),
+    );
+  });
+
   test('clear deletes everything', () async {
     when(() => storage.deleteAll()).thenAnswer((_) async {});
 

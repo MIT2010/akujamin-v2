@@ -60,6 +60,15 @@ class SecureTokenStorage implements TokenProvider {
   @override
   Future<void> clear() => _storage.deleteAll();
 
+  /// OTP login only ever returns a single access token, no refresh token
+  /// (docs/qa/auth_login.md §2 — a real architecture mismatch with
+  /// [saveTokens], not a placeholder-value workaround). Writes just the
+  /// access-token key, leaves whatever refresh token is already stored
+  /// untouched.
+  Future<void> saveAccessToken(String access) {
+    return _storage.write(key: _accessTokenKey, value: access);
+  }
+
   Future<void> saveUser(User user) {
     return _storage.write(
       key: _cachedUserKey,

@@ -128,4 +128,89 @@ feature.)
 
 ---
 
-*(Side-by-side behavior checklist — filled in after implementation.)*
+## Environment constraints (same as `about`/`onboarding`, not re-litigated)
+
+Screenshot-based proof is not achievable in this environment — full detail
+in [about.md](about.md). Verification below is real-pipeline and
+real-widget assertion-based instead, same bar as the two prior features.
+
+**What was verified, concretely (three throwaway test files under
+`apps/mobile/qa_verification/`, run then deleted — not part of the repo,
+per the `melos run test`-hang lesson from `onboarding`'s QA — evidence
+copied here):**
+
+1. **Real network pipeline, zero mocking above the socket.** A real local
+   `HttpServer` implementing `/v1/auth/send-otp`, `/v1/auth/login-otp`,
+   `/v1/auth/me`, hit through the real `SendOtpUseCase` → `VerifyOtpUseCase`
+   → `AuthRepositoryImpl` → `AuthRemoteDataSource` → `ApiClient` → `Dio`
+   chain (resolved from the real `configureDependencies()` DI graph, `Env`
+   pointed at the local server via `--dart-define`). Confirmed: both calls
+   return `Ok`, the returned `User` has the real fields from the mock
+   `/auth/me` response, the access token is genuinely persisted (read back
+   via `SecureTokenStorage.accessToken`, not just assumed), and
+   `AuthCubit.setAuthenticated(user)` flips `AuthCubit.state` to
+   `authenticated`. `flutter_secure_storage`'s platform channel has no
+   working default in this sandbox (`MissingPluginException` on `write`,
+   confirmed) — worked around with the plugin's own official in-memory
+   test double (`TestFlutterSecureStoragePlatform`), the same class of fix
+   as `shared_preferences`' `setMockInitialValues`, not a hand-rolled mock.
+2. **Real `App`/`AppRouter`/DI, pre-seeded auth state, no live-emit-during-
+   pump risk** (per `onboarding`'s documented `Cubit.emit()`-in-`runAsync()`
+   finding): booted the real `App` widget with `AuthCubit` already
+   authenticated, confirmed the real `AppRouter` routes to `/home`, then
+   `router.push('/profile')` and `router.push('/about')` — both rendered
+   (`AppBar` title visible) without a redirect loop back to `/login`. This
+   is the actual regression question this migration raises: does
+   extending `authentication` break anything the router or other features
+   depend on. It doesn't.
+3. **Real interactive tap-through, phone entry to Home**, bounded with a
+   45-second timeout (a repeat of `onboarding`'s hang would fail loudly
+   instead of running indefinitely — it didn't repeat; this run completed
+   in ~1 second). Tapped "Masuk dengan nomor telepon" on the real
+   `LoginPage`, entered a phone number, tapped "Kirim OTP" (real network
+   call), entered the OTP code once the real `otpEntry` state rendered,
+   tapped "Verifikasi" (real network call), landed on the real `HomePage`.
+   Genuinely end to end: real widgets, real taps, real Cubit, real HTTP,
+   real router redirect on success — not a mock server standing in for the
+   app's own code.
+
+**New finding, recorded so it isn't rediscovered**: `AppRouter._redirect`'s
+`loggingIn` check (`state.matchedLocation == '/login'`) is an *exact*
+string match, not a prefix match. A sibling top-level route like
+`/login/otp` would fail that check and bounce an unauthenticated user
+straight back to `/login` — a real redirect-loop bug, not hypothetical
+(confirmed by reading `packages/shared/lib/src/router/app_router.dart` in
+full). Avoided entirely by *not* adding a new `GoRoute` for the OTP flow:
+`OtpLoginPage` is reached via `Navigator.of(context).push(...)` from the
+already-`/login`-routed `LoginPage`, so the router's own location never
+changes underneath it, and the existing `loggedIn && loggingIn -> /home`
+rule fires automatically the moment `AuthCubit.setAuthenticated` runs — see
+`otp_login_page.dart`'s class doc for the full reasoning. `shared` was not
+touched by this migration.
+
+---
+
+## Checklist
+
+| Input/Aksi | Ekspektasi | Hasil di app lama | Hasil di app baru | Status |
+|---|---|---|---|---|
+| Masuk nomor telepon valid, tekan "Kirim OTP" | Kode OTP dikirim, layar verifikasi tampil | `sendOTP()` validates phone (non-empty, min length), prefixes `62`, calls `/api/auth/send-otp`, starts a countdown timer | `SendOtpUseCase` runs the same validation + `62` prefix (ported from `AuthStateCubit._validatePhone()`), calls `/auth/send-otp` — verified against a real local server. Countdown timer UI not reproduced (see below) | [x] |
+| Nomor telepon kosong atau terlalu pendek | Pesan error, tidak memanggil API | `_validatePhone()` returns an error before any network call | `SendOtpUseCase` returns `ValidationFailure` before touching the repository — unit-tested (`send_otp_usecase_test.dart`), never calls the network | [x] |
+| Masuk kode OTP benar, tekan "Verifikasi" | Login berhasil, masuk ke halaman utama | `getToken()` validates phone+OTP non-empty, calls `/api/auth/login-otp`, saves the access token, calls `getProfile()`, connects websocket, emits `authenticated` | `VerifyOtpUseCase` runs the same non-empty validation (ported from `_validateOtp()`), `AuthRepositoryImpl.verifyOtp()` calls `/auth/login-otp` → saves the access token → calls `/auth/me` → emits `authenticated` via `AuthCubit.setAuthenticated` — verified end to end against a real local server, including the real tap-through to Home (see above). Websocket-connect explicitly deferred, see MIGRATION_LOG.md | [x] |
+| Kode OTP salah atau kosong | Pesan error, tetap di layar OTP, tidak berpindah halaman | `getToken()` emits an error state, `_phoneNumber`/`_otpCode` cleared only on success (a gap) | `verifyOtp()` returns `Err`, `OtpLoginCubit` emits `verifyOtpFailure` (stays on the OTP screen with the error message) — unit-tested (`otp_login_cubit_test.dart`). In-memory phone/OTP aren't retained across attempts either way here (no persistent field to leak, unlike the old app's gap) | [x] |
+| Setelah login berhasil, buka `/profile` dan `/about` | Kedua halaman tetap bisa diakses normal | N/A — old app doesn't have this package boundary | Verified with the real `App`/`AppRouter`/DI: both routes render without a redirect loop, confirming `AuthCubit`'s public contract (`AuthState`/`setAuthenticated`) wasn't broken by this extension (see above) | [x] |
+| Hitung mundur/waktu kedaluwarsa kode OTP | Tampilkan sisa waktu, tombol kirim ulang aktif setelah kedaluwarsa | `Timer.periodic` 1-detik tick, driven by `expires_at` from the send-OTP response | Not reproduced — `expiresAt` is returned by `sendOtp` and carried in `OtpLoginState.otpEntry`/`verifyingOtp`/`verifyOtpFailure` (available to a future UI pass), but no live countdown widget or resend-cooldown logic was built. Scope was confirmed as "send-OTP + verify-OTP login only" (MIGRATION_LOG.md) — this is a UX nicety on top of that, not the core flow | [ ] — known, tracked simplification |
+| Websocket connect setelah login sukses | Terhubung ke channel psikolog | `getProfile()` success calls `_connectToWebsocket()` | Explicitly out of scope — see MIGRATION_LOG.md's permanent findings section | [ ] — deferred to `websocket`/`counseling` migration |
+
+---
+
+## See also
+
+- [MIGRATION_LOG.md](../../MIGRATION_LOG.md) — `auth`'s row, and the
+  permanent findings (websocket-connect-on-login, `account_page`) recorded
+  before this feature's code was written.
+- [about.md](about.md) — the environment-constraints writeup this file
+  points back to rather than repeats.
+- [onboarding.md](onboarding.md) — the `Cubit.emit()`-in-`runAsync()` and
+  `melos run test`-hang findings this file's verification approach was
+  built to avoid repeating.

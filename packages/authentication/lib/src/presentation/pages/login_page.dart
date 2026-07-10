@@ -6,6 +6,7 @@ import 'package:shared/shared.dart';
 
 import '../cubit/login_cubit.dart';
 import '../cubit/login_state.dart';
+import 'otp_login_page.dart';
 
 /// §23 — a `StatefulWidget` (not `StatelessWidget`) so the text controllers
 /// have a home to live in and get disposed; the doc's illustrative
@@ -79,6 +80,13 @@ class LoginViewState extends State<LoginView> {
                   email: _emailController.text,
                   password: _passwordController.text,
                 ),
+              ),
+              const SizedBox(height: AppSpacing.sm),
+              TextButton(
+                onPressed: () => Navigator.of(
+                  context,
+                ).push(MaterialPageRoute(builder: (_) => const OtpLoginPage())),
+                child: const Text('Masuk dengan nomor telepon'),
               ),
             ],
           ),

@@ -56,4 +56,90 @@ void main() {
       expect(captured, {'email': 'a@example.com', 'password': 'secret'});
     },
   );
+
+  test('sendOtp posts to /auth/send-otp and parses expires_at', () async {
+    when(
+      () => client.post<DateTime>(
+        '/auth/send-otp',
+        data: any(named: 'data'),
+        parser: any(named: 'parser'),
+      ),
+    ).thenAnswer((invocation) async {
+      final parser =
+          invocation.namedArguments[#parser] as DateTime Function(dynamic);
+      return Ok(
+        parser({
+          'data': {'expires_at': '2026-07-10T12:00:00.000Z'},
+        }),
+      );
+    });
+
+    final result = await dataSource.sendOtp('81234567890');
+
+    expect(result.isOk, isTrue);
+    expect(
+      (result as Ok<Failure, DateTime>).value,
+      DateTime.parse('2026-07-10T12:00:00.000Z'),
+    );
+
+    final captured = verify(
+      () => client.post<DateTime>(
+        '/auth/send-otp',
+        data: captureAny(named: 'data'),
+        parser: any(named: 'parser'),
+      ),
+    ).captured.single;
+    expect(captured, {'phone_number': '81234567890'});
+  });
+
+  test(
+    'verifyOtp posts to /auth/login-otp and parses the access token',
+    () async {
+      when(
+        () => client.post<String>(
+          '/auth/login-otp',
+          data: any(named: 'data'),
+          parser: any(named: 'parser'),
+        ),
+      ).thenAnswer((invocation) async {
+        final parser =
+            invocation.namedArguments[#parser] as String Function(dynamic);
+        return Ok(parser({'access_token': 'otp-access-1'}));
+      });
+
+      final result = await dataSource.verifyOtp('6281234567890', '123456');
+
+      expect(result.isOk, isTrue);
+      expect((result as Ok<Failure, String>).value, 'otp-access-1');
+
+      final captured = verify(
+        () => client.post<String>(
+          '/auth/login-otp',
+          data: captureAny(named: 'data'),
+          parser: any(named: 'parser'),
+        ),
+      ).captured.single;
+      expect(captured, {'phone_number': '6281234567890', 'otp_code': '123456'});
+    },
+  );
+
+  test('getProfile fetches /auth/me and parses the body', () async {
+    when(
+      () => client.get<UserProfileModel>(
+        '/auth/me',
+        query: any(named: 'query'),
+        parser: any(named: 'parser'),
+      ),
+    ).thenAnswer((invocation) async {
+      final parser =
+          invocation.namedArguments[#parser]
+              as UserProfileModel Function(dynamic);
+      return Ok(parser({'id': '1', 'email': 'a@example.com', 'role': 'admin'}));
+    });
+
+    final result = await dataSource.getProfile();
+
+    expect(result.isOk, isTrue);
+    expect((result as Ok<Failure, UserProfileModel>).value.id, '1');
+  });
 }

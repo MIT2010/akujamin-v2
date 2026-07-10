@@ -64,6 +64,21 @@ void main() {
     expect(find.text('Login'), findsOneWidget);
   });
 
+  testWidgets('shows a link to the OTP login flow', (tester) async {
+    whenListen(
+      cubit,
+      const Stream<LoginState>.empty(),
+      initialState: const LoginState.initial(),
+    );
+
+    await tester.pumpWidget(harness(cubit));
+
+    // Not tapped here: tapping pushes OtpLoginPage, which resolves
+    // OtpLoginCubit via get_it — out of scope for this bare harness (no
+    // configureDependencies). Covered by otp_login_page_test.dart instead.
+    expect(find.text('Masuk dengan nomor telepon'), findsOneWidget);
+  });
+
   testWidgets('tapping login submits the entered credentials', (tester) async {
     whenListen(
       cubit,

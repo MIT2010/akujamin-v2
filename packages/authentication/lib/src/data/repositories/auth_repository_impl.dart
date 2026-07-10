@@ -35,6 +35,36 @@ class AuthRepositoryImpl implements AuthRepository {
   }
 
   @override
+  Future<Result<Failure, DateTime>> sendOtp({required String phoneNumber}) {
+    return _remote.sendOtp(phoneNumber);
+  }
+
+  /// Three-step orchestration mirroring [login]'s shape: verify → persist
+  /// the (single) access token → fetch the profile the login-otp response
+  /// doesn't carry → persist the user. Both `fold`s are async for the same
+  /// reason [login]'s is.
+  @override
+  Future<Result<Failure, User>> verifyOtp({
+    required String phoneNumber,
+    required String otpCode,
+  }) async {
+    final tokenResult = await _remote.verifyOtp(phoneNumber, otpCode);
+    return tokenResult.fold((failure) async => Err(failure), (
+      accessToken,
+    ) async {
+      await _tokenStorage.saveAccessToken(accessToken);
+      final profileResult = await _remote.getProfile();
+      return profileResult.fold((failure) async => Err(failure), (
+        profile,
+      ) async {
+        final user = profile.toEntity();
+        await _tokenStorage.saveUser(user);
+        return Ok(user);
+      });
+    });
+  }
+
+  @override
   Future<Result<Failure, void>> logout() async {
     await _tokenStorage.clear();
     return const Ok(null);

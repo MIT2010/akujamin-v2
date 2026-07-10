@@ -20,7 +20,19 @@ Status values: **belum** (not started) · **proses** (in progress) ·
 
 ---
 
-## ⚠ Open decision: write-path + UseCase (§21/ADR-004) still untested
+## ✅ Resolved: write-path + UseCase (§21/ADR-004) — `auth` (feature #3)
+
+**Resolved 2026-07-10.** `auth`'s `SendOtpUseCase` and `VerifyOtpUseCase`
+(send-OTP + verify-OTP login) are the first genuine "yes, this needs a
+UseCase" cases in this project — both justified by real validation logic
+ported from the old app's `AuthStateCubit._validatePhone()`/
+`_validateOtp()` (non-empty checks, `62` country-code prefixing), not
+invented to force a UseCase into existence. See `auth`'s row below and
+[docs/qa/auth_login.md](docs/qa/auth_login.md). Kept below for the
+history of *why* this took two features to land on real evidence.
+
+<details>
+<summary>Original open-decision text (resolved, kept for context)</summary>
 
 **Keputusan write-path + UseCase (§21/ADR-004) masih BELUM teruji di
 akujamin-v2 setelah 2 fitur (`about`, `onboarding` — keduanya kasus
@@ -46,6 +58,8 @@ rejected during the onboarding mini-audit failed exactly that test, see
 AUDIT.md §6) rather than reaching for another local-only or read-only
 feature by default. This line exists so that decision doesn't keep
 getting pushed to "next time" indefinitely.
+
+</details>
 
 ---
 
@@ -90,7 +104,7 @@ both `auth`'s `getProfile()` and the kit's existing `feature_profile`.
 | `about` | Selesai (migrasi pipeline terbukti) — **CATATAN: markdown rendering belum ada, `CustomMarkdownWidget` equivalent perlu dibangun di `packages/design_system` sebelum fitur manapun yang kontennya benar-benar pakai format markdown (cek AUDIT.md §3 — `test`/`counseling` kemungkinan butuh ini).** | 2026-07-09 | 2026-07-09 | Pilot, first migrated feature. `packages/feature_about`, wired into `apps/mobile` (ADR-010: pubspec dep, `ExternalModule`, `/about` route, FAQ icon on Home). QA: [docs/qa/about.md](docs/qa/about.md) — real network + widget verification; screenshot-based proof wasn't possible in this environment (session-isolation + a `toImage()` hang, both documented there), so evidence is assertion-based against real data instead. FAQ text currently renders as plain `Text`, not markdown — see Status column. Network-failure/empty-list paths reuse already-tested `core` code and weren't re-exercised. |
 | `onboarding` | Selesai (local-storage layer terbukti, kasus "tanpa UseCase" kedua) — **CATATAN: auto-tampil sebelum login (splash→onboarding→login gating dari app lama) BELUM direplikasi, hanya reachable manual dari Home; asset visual asli (logo/ikon KTP) diganti Material Icon, copy text asli dipertahankan.** | 2026-07-10 | 2026-07-10 | Second migrated feature. `packages/feature_onboarding`, wired into `apps/mobile` (ADR-010: pubspec dep, `ExternalModule`, `/onboarding` route, icon on Home). Proves `shared_preferences` (a storage tier no prior feature touched) and `CacheFailure` (declared in `core` since day one, unused until now) for the first time. **Real architectural correction, not a faithful port**: old app stored this flag in `flutter_secure_storage` (wrong tier for a non-sensitive bool per ARCHITECTURE.md §24) — migrated to `shared_preferences`. QA: [docs/qa/onboarding.md](docs/qa/onboarding.md) — real, unmocked local-storage round-trip + real widget verification; same screenshot-proof environment constraints as `about`, documented there. |
 | `dashboard` | belum | — | — | Hub — consumes about/payment/auth; migrate after its dependencies. **Before auditing:** read `account_page.dart` first — see permanent findings above, it may be a distinct migration target from `feature_profile` |
-| `auth` | proses | 2026-07-10 | — | Foundational, highest fan-in — maps onto the kit's existing `authentication` package rather than a new one. **Feature #3, scope confirmed**: send-OTP + verify-OTP login only, excludes register/KTP/selfie/websocket-connect/account_page (see permanent findings above). Sensitive-data checklist: [docs/qa/auth_login.md](docs/qa/auth_login.md) |
+| `auth` | Selesai (send-OTP + verify-OTP login, **project's first genuine "yes, UseCase is justified" case** — see below) — **CATATAN: countdown/expiry UI dan websocket-connect-on-login BELUM direplikasi (lihat catatan permanen di atas); register/KTP/selfie/account_page tetap di luar cakupan.** | 2026-07-10 | 2026-07-10 | Feature #3, foundational/highest fan-in — extends the kit's existing `authentication` package additively (new `SendOtpUseCase`/`VerifyOtpUseCase`/`OtpLoginCubit`/`OtpLoginPage`, all parallel to the existing email/password `LoginUseCase`/`LoginCubit`/`LoginPage`, which are untouched). **Resolves the open UseCase decision** (see above): both new usecases are justified by real ported validation (phone/OTP non-empty, `62` country-code prefix) from the old app's `AuthStateCubit`, not invented structure — the first two real "needs a UseCase" cases after `about`/`onboarding`'s two "doesn't" cases. `OtpLoginPage` is reached via `Navigator.push` from `LoginPage`, not a new `GoRoute` — avoids a real redirect-loop bug found in `AppRouter._redirect` (exact-match on `/login`, would reject a sibling route like `/login/otp`); `shared` was not touched. 30-test `authentication` baseline stayed exactly green, 28 tests added (58 total) — verified by name, not just count. QA: [docs/qa/auth_login.md](docs/qa/auth_login.md) — sensitive-data checklist + real network/router/interactive-tap-through verification, including a real (not mock-server-only) login run through to `/home` with `/profile` and `/about` confirmed still reachable. |
 | `splash` | belum | — | — | Likely folds into app bootstrap, not a full package |
 | `counseling` | belum | — | — | Realtime (websocket) — migrate late. **Blocker check before starting:** (1) if its content uses markdown formatting, needs `design_system`'s markdown widget first — see `about`'s row, not yet built; (2) see permanent findings above — login's websocket-connect-on-success side effect was deferred during `auth`'s migration and needs to be reconnected here |
 | `payment` | belum | — | — | Large, coupled with dashboard |
