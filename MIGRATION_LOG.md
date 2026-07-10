@@ -24,14 +24,14 @@ Status values: **belum** (not started) · **proses** (in progress) ·
 
 | Feature | Status | Started | Done | Notes |
 |---|---|---|---|---|
-| `about` | selesai | 2026-07-09 | 2026-07-09 | Pilot, first migrated feature. `packages/feature_about`, wired into `apps/mobile` (ADR-010: pubspec dep, `ExternalModule`, `/about` route, FAQ icon on Home). QA: [docs/qa/about.md](docs/qa/about.md) — real network + widget verification; screenshot-based proof wasn't possible in this environment (session-isolation + a `toImage()` hang, both documented there), so evidence is assertion-based against real data instead. Deferred: real markdown rendering (still plain `Text`), network-failure/empty-list paths reuse already-tested `core` code and weren't re-exercised. |
+| `about` | Selesai (migrasi pipeline terbukti) — **CATATAN: markdown rendering belum ada, `CustomMarkdownWidget` equivalent perlu dibangun di `packages/design_system` sebelum fitur manapun yang kontennya benar-benar pakai format markdown (cek AUDIT.md §3 — `test`/`counseling` kemungkinan butuh ini).** | 2026-07-09 | 2026-07-09 | Pilot, first migrated feature. `packages/feature_about`, wired into `apps/mobile` (ADR-010: pubspec dep, `ExternalModule`, `/about` route, FAQ icon on Home). QA: [docs/qa/about.md](docs/qa/about.md) — real network + widget verification; screenshot-based proof wasn't possible in this environment (session-isolation + a `toImage()` hang, both documented there), so evidence is assertion-based against real data instead. FAQ text currently renders as plain `Text`, not markdown — see Status column. Network-failure/empty-list paths reuse already-tested `core` code and weren't re-exercised. |
 | `onboarding` | belum | — | — | Local-only (no network), leaf |
 | `dashboard` | belum | — | — | Hub — consumes about/payment/auth; migrate after its dependencies |
 | `auth` | belum | — | — | Foundational, highest fan-in — maps onto the kit's existing `authentication` package rather than a new one |
 | `splash` | belum | — | — | Likely folds into app bootstrap, not a full package |
-| `counseling` | belum | — | — | Realtime (websocket) — migrate late |
+| `counseling` | belum | — | — | Realtime (websocket) — migrate late. **Blocker check before starting:** if its content uses markdown formatting, needs `design_system`'s markdown widget first — see `about`'s row, not yet built |
 | `payment` | belum | — | — | Large, coupled with dashboard |
-| `test` | belum | — | — | Largest, camera+face+websocket+screenshot — migrate last |
+| `test` | belum | — | — | Largest, camera+face+websocket+screenshot — migrate last. **Blocker check before starting:** if its content uses markdown formatting, needs `design_system`'s markdown widget first — see `about`'s row, not yet built |
 
 ## Infrastructure/service features (become shared/core services, not feature packages)
 
