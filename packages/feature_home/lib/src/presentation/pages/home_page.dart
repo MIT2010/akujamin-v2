@@ -35,6 +35,16 @@ class HomeView extends StatelessWidget {
         title: const Text('Home'),
         actions: [
           IconButton(
+            icon: const Icon(Icons.info_outline),
+            tooltip: 'Onboarding',
+            // Same route-string navigation as the other buttons here —
+            // features never depend on each other directly (§5). Old app
+            // auto-showed this pre-login on first launch; manual entry
+            // point here instead (docs/qa/onboarding.md's tracked
+            // simplification, ADR-010's minimal-wiring bar).
+            onPressed: () => context.push('/onboarding'),
+          ),
+          IconButton(
             icon: const Icon(Icons.help_outline),
             tooltip: 'FAQ',
             // Same route-string navigation as the profile button below —

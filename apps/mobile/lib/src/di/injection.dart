@@ -7,6 +7,7 @@ import 'package:core/core.dart';
 import 'package:core/src/di/core_module.module.dart';
 import 'package:feature_about/src/di/feature_about_module.module.dart';
 import 'package:feature_home/src/di/feature_home_module.module.dart';
+import 'package:feature_onboarding/src/di/feature_onboarding_module.module.dart';
 import 'package:feature_profile/src/di/feature_profile_module.module.dart';
 import 'package:injectable/injectable.dart';
 import 'package:shared/shared.dart' hide configureDependencies;
@@ -31,6 +32,7 @@ import 'injection.config.dart';
     ExternalModule(FeatureHomePackageModule),
     ExternalModule(FeatureProfilePackageModule),
     ExternalModule(FeatureAboutPackageModule),
+    ExternalModule(FeatureOnboardingPackageModule),
   ],
 )
 Future<void> configureDependencies({required Env env}) async {

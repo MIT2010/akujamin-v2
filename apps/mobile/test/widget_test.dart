@@ -9,6 +9,7 @@ import 'package:mobile/src/app.dart';
 import 'package:mobile/src/di/injection.dart';
 import 'package:path_provider_platform_interface/path_provider_platform_interface.dart';
 import 'package:shared/shared.dart' show getIt;
+import 'package:shared_preferences/shared_preferences.dart';
 
 /// `feature_home`'s DI graph opens a real Hive box during
 /// `configureDependencies()` (§12's `@preResolve`), which needs
@@ -41,6 +42,13 @@ Future<void> _preOpenInMemoryHomeItemsBox() async {
 
 void main() {
   setUpAll(() => PathProviderPlatform.instance = _FakePathProviderPlatform());
+  // `feature_onboarding`'s DI graph loads a real SharedPreferences instance
+  // during `configureDependencies()` (§12's `@preResolve`, same pattern as
+  // `feature_home`'s Hive box above). Unlike Hive/path_provider,
+  // shared_preferences ships its own officially-supported in-memory test
+  // double for exactly this — no fake platform class needed, just seed it
+  // before the real call happens.
+  setUp(() => SharedPreferences.setMockInitialValues({}));
   tearDown(() => getIt.reset());
 
   testWidgets(
