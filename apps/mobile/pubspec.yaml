@@ -18,6 +18,8 @@ dependencies:
     path: ../../packages/design_system
   feature_about:
     path: ../../packages/feature_about
+  feature_history:
+    path: ../../packages/feature_history
   feature_home:
     path: ../../packages/feature_home
   feature_onboarding:
