@@ -26,6 +26,10 @@
 	<string>$(FLUTTER_BUILD_NUMBER)</string>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
+	<key>NSCameraUsageDescription</key>
+	<string>AKUJAMIN menggunakan kamera untuk verifikasi identitas (swafoto dan KTP) serta untuk memotret bukti pembayaran saat proses pembayaran tes.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>AKUJAMIN memerlukan akses galeri untuk memilih bukti pembayaran atau dokumen pendukung yang sudah tersimpan di perangkat Anda.</string>
 	<key>UIApplicationSceneManifest</key>
 	<dict>
 		<key>UIApplicationSupportsMultipleScenes</key>

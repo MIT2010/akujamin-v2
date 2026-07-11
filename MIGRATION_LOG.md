@@ -259,20 +259,57 @@ storage-tier fix and permanent finding #4's face-image cleanup.
 
 ---
 
-## ⚠ Open item — `payment` status codes need real data to resolve
+## ✓ Resolved — `payment` status codes (was: open item above)
 
-`PaymentStateCubit._mapStatus()` (old app) branches on raw string codes
-`'PT'`/`'TP'`/anything-else with no comment or constant explaining what
-they stand for — found during the joint `payment`/`test`/`counseling`/
-`websocket` audit (2026-07-10). Clarifying these requires seeing real API
-responses, not just reading client code. **Does not block the
-"Riwayat + sertifikat" slice**: `VoucherEntity.testResult`/`status` are
-consumed there purely as **display strings** (shown in a list, not
-branched on), so this ambiguity has no effect on that slice's
-correctness. **Must be resolved before any future `payment` write-path
-audit** (creating a voucher, tracking its status through the demography →
-payment → confirmation flow) — flagged here specifically so that future
-audit doesn't have to rediscover this gap from scratch.
+**Resolved 2026-07-11**, using `PMI-API.postman_collection.json`
+(endpoint/request shapes only — the collection has zero saved response
+examples or descriptions at any level, confirmed exhaustively) cross-read
+against `payment_state_cubit.dart`'s actual branching logic.
+
+**Correction to the original framing: this was never one ambiguous
+field — it's three separate status vocabularies that got collapsed into
+one question.**
+
+| Field | Source | Confirmed values | Migrated where |
+|---|---|---|---|
+| `status_ujian` (flat) | `GET /tes/list-voucher` | `'Belum Tes'/'Sedang Tes'/'Konseling'/'Lulus'/'Tidak Lulus'/'Selesai'` | Already done — `feature_history`'s `TestHistoryItem.status` (plain `String`, display-only) |
+| `info_registrasi.status_ujian` | `GET /tes/cek-voucher` | `'PT'`, `'TP'`, else | **This is what `_mapStatus()` actually branches on** — the real target of the original open item |
+| `pembayaran.status` | `cek-voucher`'s `pembayaran` block, `GET /tes/cek-pembayaran` | only `'PAID'` confirmed | Drives the review page's success/pending split |
+
+**`'PT'`/`'TP'`'s literal expansion remains unconfirmed** — the Postman
+collection has no response examples or descriptions anywhere, so there is
+no source to translate the abbreviation from, only its functional
+behavior:
+
+```
+'PT'  → PaymentStatus.demography  (isi form + pilih psikolog)
+'TP'  → PaymentStatus.payment     (transfer manual + upload bukti)
+else  → PaymentStatus.review      (split further by pembayaran.status)
+```
+
+**Approved `StatusVoucher` enum** (final, confirmed by user 2026-07-11 —
+deliberately not 1:1 with the old app's single `PaymentStatus.review`
+catch-all, which itself branched again on `isSuccess` inside the UI):
+
+```dart
+enum StatusVoucher {
+  needsRegistrationData, // API: 'PT'
+  needsPayment,          // API: 'TP'
+  underReview,           // API: else, pembayaran.status != 'PAID'
+  paid,                  // API: else, pembayaran.status == 'PAID'
+}
+```
+
+**Approved fix — socket disconnect asymmetry** (confirmed 2026-07-11):
+the old app's `disconnectSocket()` skips `unsubscribe`+
+`clearPsychologistId` specifically when `state.status ==
+PaymentStatus.review`, but still tears down its local listeners and
+resets its own `_socketConnected` flag — leaving the channel subscription
+alive in the shared `SocketService` with nothing left listening to it.
+Not a deliberate design, just an asymmetry. The migrated version always
+unsubscribes and clears on dispose regardless of status, relying on
+`subscribeIfNotUnsubscribed()`'s idempotency (already proven safe by
+`counseling`) if the user re-enters payment later.
 
 ---
 
@@ -286,7 +323,7 @@ audit doesn't have to rediscover this gap from scratch.
 | `auth` | Selesai (send-OTP + verify-OTP login, **project's first genuine "yes, UseCase is justified" case** — see below) — **CATATAN: countdown/expiry UI dan websocket-connect-on-login BELUM direplikasi (lihat catatan permanen di atas); register/KTP/selfie tetap di luar cakupan.** | 2026-07-10 | 2026-07-10 | Feature #3, foundational/highest fan-in — extends the kit's existing `authentication` package additively (new `SendOtpUseCase`/`VerifyOtpUseCase`/`OtpLoginCubit`/`OtpLoginPage`, all parallel to the existing email/password `LoginUseCase`/`LoginCubit`/`LoginPage`, which are untouched). **Resolves the open UseCase decision** (see above): both new usecases are justified by real ported validation (phone/OTP non-empty, `62` country-code prefix) from the old app's `AuthStateCubit`, not invented structure — the first two real "needs a UseCase" cases after `about`/`onboarding`'s two "doesn't" cases. `OtpLoginPage` is reached via `Navigator.push` from `LoginPage`, not a new `GoRoute` — avoids a real redirect-loop bug found in `AppRouter._redirect` (exact-match on `/login`, would reject a sibling route like `/login/otp`); `shared` was not touched. 30-test `authentication` baseline stayed exactly green, 28 tests added (58 total) — verified by name, not just count. **Extended again same day** to resolve the `dashboard`/`account_page` finding (see above): `SessionProfile` (`avatar`/`name`/`nik`) added as an entity separate from `User`, deliberately — `User` flows into `CrashReporter.setUserId`/`AnalyticsService.setUserId` (unwired today, but that's their whole purpose), and NIK must not travel there by accident. Stored alongside `User` in `SecureTokenStorage` (own key), cleared by the same `clear()` — verified with a real (non-mocked) storage backing, not assumed. `authentication` test count: 58 → 62. QA: [docs/qa/auth_login.md](docs/qa/auth_login.md) — sensitive-data checklist + real network/router/interactive-tap-through verification, including a real (not mock-server-only) login run through to `/home` with `/profile` and `/about` confirmed still reachable; [docs/qa/account.md](docs/qa/account.md) — the `SessionProfile`/NIK checklist and the real-storage clear() proof. |
 | `splash` | belum | — | — | Likely folds into app bootstrap, not a full package |
 | `counseling` | Selesai (session list + realtime chat thread, **first feature with a real websocket integration**) — **CATATAN: koneksi Pusher wire-level tidak diuji terhadap server sungguhan di sandbox ini (lihat docs/qa/counseling.md § Environment constraints); logika reconnect/backoff/filter event sepenuhnya diuji lewat fake gateway.** | 2026-07-11 | 2026-07-11 | Audited in full before any code (see the corrected permanent finding #1 above: chat is self-contained — `subscribe()` calls `connect()` itself, does **not** depend on `auth`'s deferred connect-on-login, which stays scoped to `conf.<psychologistId>` only), permanent finding #3's now-VERIFIED `sendMessage`/`FormData` safety, and the new permanent finding #6 (raw message content in system notifications — a `dashboard`/`notification` concern, not `counseling`'s). Markdown checked directly: **not used anywhere** in counseling. No image/attachment support exists in the old app's chat at all — confirmed by reading `ChatEntity`, `sendMessage`'s params, and `InputChatField`'s UI; nothing to migrate there. **Four approved design corrections, not faithful ports**: bounded exponential-backoff reconnect (`packages/feature_counseling/lib/src/realtime/reconnect_backoff.dart`, old app retried immediately, unconditionally, forever); explicit unsubscribe (and, if it's the last channel, disconnect) in `ChatCubit.close()` when the session hasn't ended (old app leaked the channel+socket for the rest of the app's life otherwise); the `sent`-event filter checks `kode_voucher` matches the open chat in addition to `sender_type != 'participant'` (old app only checked the latter — a latent cross-channel bug that matters here specifically because the socket gateway is a shared singleton, unlike the old app's per-feature instance); `ChatMessageStatus` only has `pending`/`sent`/`failed` — no fabricated `delivered`/`read`, since the old app's own `MessageStatus` enum with those values was purely decorative. No UseCase — all three endpoints are thin passthroughs, same conclusion as `about`/`onboarding`/`history`. `"Konseling"` on `feature_history`'s history tile now navigates to the real chat page (was a placeholder). QA: [docs/qa/counseling.md](docs/qa/counseling.md) — sensitive-data checklist for transcripts (same tier as raw test answers), the optimistic-send/echo-filter regression test, real network + real router verification. `feature_counseling` test count: 31 (new package). |
-| `payment` | belum (partial: read-only `list-voucher` resolved via `dashboard`'s Riwayat tab) | — | — | Large, coupled with dashboard. Full endpoint/entity map done in the joint `payment`/`test`/`counseling`/`websocket` audit (2026-07-10). **`GET /tes/list-voucher` (read-only) migrated 2026-07-11** as part of the "Riwayat + sertifikat" slice — see `dashboard`'s row and [docs/qa/history.md](docs/qa/history.md); this is a read path only, not a status-line change for `payment` itself. **Open item above still applies**: `'PT'`/`'TP'` status codes need real API data before the write-path (create voucher → demography → payment → confirmation) can be audited in detail |
+| `payment` | belum (partial: read-only `list-voucher` resolved via `dashboard`'s Riwayat tab) | — | — | Large, coupled with dashboard. Full endpoint/entity map done in the joint `payment`/`test`/`counseling`/`websocket` audit (2026-07-10). **`GET /tes/list-voucher` (read-only) migrated 2026-07-11** as part of the "Riwayat + sertifikat" slice — see `dashboard`'s row and [docs/qa/history.md](docs/qa/history.md); this is a read path only, not a status-line change for `payment` itself. **Status-code open item resolved 2026-07-11** — see "✓ Resolved — `payment` status codes" above. **Write-path audit done 2026-07-11** (real Postman collection + full source read): `getVouchers`/`VoucherEntity` are redundant with `feature_history`'s already-migrated `list-voucher` read, not part of payment's remaining scope; `POST /tes/kirim-penilaian` exists on the backend but is never called by `PaymentApiService` — belongs to `test`, out of scope here; psychologist selection is a `form_input`-schema field (`'psikologi'`), and its value drives both the socket channel name and a **per-psychologist** bank-account lookup (`GET /tes/rekening-psikolog/{id}`) — payment is not one central account; all 9 payment usecases are pure passthroughs, no orchestration — **no UseCase layer**, same as `about`/`onboarding`/`history`/`counseling`. **Hard prerequisite found, not yet built**: `form_input` (the dynamic-form capability payment's demography step depends on) does not exist anywhere in `packages/shared` yet — see the separate form_input mini-audit before payment code starts. Camera permission gap (`NSCameraUsageDescription` etc., previously flagged only under `test`'s row) fixed 2026-07-11 as part of this slice, since payment's proof-of-payment upload is the first real camera consumer being migrated — see `apps/mobile`'s `Info.plist`/`AndroidManifest.xml`. |
 | `test` | belum (partial: read-only certificate view resolved) | — | — | Largest, camera+face+websocket+screenshot — migrate last. **`certificate_page.dart` (read-only PDF viewer) migrated 2026-07-11** as part of the "Riwayat + sertifikat" slice, landed in `packages/feature_history` rather than a `feature_test` package — see [docs/qa/history.md](docs/qa/history.md). Deliberately the one piece of `test` extractable without inheriting camera/websocket/write-path risk; the actual test-taking flow (questions/timer/face-proctoring) is untouched. **Blocker check before starting the rest:** (1) if its content uses markdown formatting, needs `design_system`'s markdown widget first — see `about`'s row, not yet built; (2) permanent finding #3 above — never ad-hoc-log raw test answers; (3) permanent finding #4 above — captured face images need explicit cleanup added, not ported as-is; (4) no `NSCameraUsageDescription`/Android camera permission found anywhere in the old app (native inventory, 2026-07-10) — must be added deliberately, there's no working old-app iOS behavior to match |
 
 ## Infrastructure/service features (become shared/core services, not feature packages)
