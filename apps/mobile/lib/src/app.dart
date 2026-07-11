@@ -5,6 +5,7 @@ import 'package:feature_counseling/feature_counseling.dart';
 import 'package:feature_history/feature_history.dart';
 import 'package:feature_home/feature_home.dart';
 import 'package:feature_onboarding/feature_onboarding.dart';
+import 'package:feature_payment/feature_payment.dart';
 import 'package:feature_profile/feature_profile.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
@@ -47,4 +48,5 @@ final _routes = <RouteBase>[
     builder: (context, state) => const CounselingListPage(),
   ),
   GoRoute(path: '/chat/:code', builder: (context, state) => const ChatPage()),
+  GoRoute(path: '/payment', builder: (context, state) => const PaymentPage()),
 ];

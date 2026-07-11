@@ -66,6 +66,13 @@ class HomeView extends StatelessWidget {
             onPressed: () => context.push('/counseling'),
           ),
           IconButton(
+            icon: const Icon(Icons.payment_outlined),
+            tooltip: 'Pembayaran',
+            // Same route-string navigation as the other buttons here —
+            // features never depend on each other directly (§5).
+            onPressed: () => context.push('/payment'),
+          ),
+          IconButton(
             icon: const Icon(Icons.person),
             tooltip: 'Akun',
             // Navigation by route string, not by importing feature_profile —

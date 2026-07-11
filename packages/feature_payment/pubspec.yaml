@@ -1,0 +1,51 @@
+name: feature_payment
+description: >-
+  Voucher creation + manual bank-transfer payment flow — migrated from the
+  old app's `payment` feature. Full write-path only: the read-only
+  `list-voucher` slice already landed in `feature_history`, and
+  `getVouchers`/`VoucherEntity` are not re-migrated here (redundant with
+  that). See MIGRATION_LOG.md for the joint payment/test/counseling/
+  websocket audit and the write-path map this was built from.
+version: 0.0.1
+publish_to: none
+
+resolution: workspace
+
+environment:
+  sdk: ^3.12.2
+  flutter: ">=1.17.0"
+
+dependencies:
+  authentication:
+    path: ../authentication
+  core:
+    path: ../core
+  design_system:
+    path: ../design_system
+  shared:
+    path: ../shared
+  dart_pusher_channels: ^1.3.1
+  dio: ^5.7.0
+  flutter:
+    sdk: flutter
+  flutter_bloc: ^9.1.1
+  flutter_secure_storage: ^10.3.1
+  freezed_annotation: ^3.1.0
+  go_router: ^17.3.0
+  image_picker: ^1.2.1
+  injectable: ^3.0.0
+  intl: ^0.20.2
+  json_annotation: ^4.12.0
+
+dev_dependencies:
+  bloc_test: ^10.0.0
+  build_runner: ^2.4.13
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+  freezed: ^3.2.5
+  injectable_generator: ^3.0.0
+  json_serializable: ^6.14.0
+  mocktail: ^1.0.4
+
+flutter:

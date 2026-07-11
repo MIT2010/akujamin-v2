@@ -26,6 +26,8 @@ dependencies:
     path: ../../packages/feature_home
   feature_onboarding:
     path: ../../packages/feature_onboarding
+  feature_payment:
+    path: ../../packages/feature_payment
   feature_profile:
     path: ../../packages/feature_profile
   shared:

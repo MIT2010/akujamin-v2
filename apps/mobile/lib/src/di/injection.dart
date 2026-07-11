@@ -10,6 +10,7 @@ import 'package:feature_counseling/src/di/feature_counseling_module.module.dart'
 import 'package:feature_history/src/di/feature_history_module.module.dart';
 import 'package:feature_home/src/di/feature_home_module.module.dart';
 import 'package:feature_onboarding/src/di/feature_onboarding_module.module.dart';
+import 'package:feature_payment/src/di/feature_payment_module.module.dart';
 import 'package:feature_profile/src/di/feature_profile_module.module.dart';
 import 'package:injectable/injectable.dart';
 import 'package:shared/shared.dart' hide configureDependencies;
@@ -37,6 +38,7 @@ import 'injection.config.dart';
     ExternalModule(FeatureOnboardingPackageModule),
     ExternalModule(FeatureHistoryPackageModule),
     ExternalModule(FeatureCounselingPackageModule),
+    ExternalModule(FeaturePaymentPackageModule),
   ],
 )
 Future<void> configureDependencies({required Env env}) async {

@@ -24,6 +24,7 @@ workspace:
   - packages/feature_onboarding
   - packages/feature_history
   - packages/feature_counseling
+  - packages/feature_payment
 
 # ADR-006: `fvm` is baked into every script body below (`fvm flutter`/
 # `fvm dart`, never bare `flutter`/`dart`) — so `melos run <name>` is safe
