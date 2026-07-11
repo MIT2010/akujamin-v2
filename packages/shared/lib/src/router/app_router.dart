@@ -66,6 +66,19 @@ class AppRouter {
     if (loggedIn && loggingIn) return '/home';
 
     final matchedRoute = state.topRoute;
+
+    // GoRouter defaults to '/' when no initialLocation is given (true of
+    // every real caller here — apps/mobile never sets one), and this app
+    // never registers a route for '/' itself. Left unhandled, a logged-in
+    // user landing there — which is exactly what happens on every cold
+    // start once a session is restored from disk, not just a theoretical
+    // path — falls through to NotFoundPage instead of a sensible screen.
+    // Scoped to '/' specifically (not every unmatched location) so a real
+    // 404 on a genuinely bad route still shows NotFoundPage.
+    if (loggedIn && matchedRoute == null && state.uri.path == '/') {
+      return '/home';
+    }
+
     if (matchedRoute is AppRoute && matchedRoute.roles.isNotEmpty) {
       final hasRequiredRole = matchedRoute.roles.any(status.roles.contains);
       if (!hasRequiredRole) return '/home';

@@ -161,6 +161,57 @@ after a successful (or failed) upload — this is a correction migration
 must make, the same category of decision as `onboarding`'s storage-tier
 fix, not a faithful-port question.
 
+**5. ✅ Resolved 2026-07-11 — `AppRouter._redirect` had no rule for a
+logged-in user landing on `/`, GoRouter's default `initialLocation`.**
+Same class of gap as ADR-011 (a `packages/shared` foundation issue, not
+specific to any one feature) — found while wiring `feature_history` into
+`apps/mobile`'s route table, but the bug itself predates that feature
+entirely and affects the whole app. **Real severity, not a future edge
+case**: `apps/mobile` never sets `AppRouter.router`'s `initialLocation`
+(confirmed — grepped the whole app), so every cold start lands on `/`
+by default; `apps/mobile` also never registers a `GoRoute` for `/` itself
+(confirmed). `_redirect`'s existing rules only handled "not logged in,
+not on `/login`" and "logged in, on `/login`" — neither covers "logged
+in, on `/`, nothing matches `/`" — so it fell through to
+`state.topRoute == null`, returned `null` (no redirect), and GoRouter's
+`errorBuilder` (`NotFoundPage`) rendered instead. **Concretely: every
+user who logs in, fully closes the app, and reopens it hits a 404**
+(`AuthCubit._restoreCachedSession()` restores the session from
+`SecureTokenStorage` correctly — the session itself was never the
+problem, only where the router sends an already-restored session on the
+app's default landing location).
+
+Fixed in `packages/shared/lib/src/router/app_router.dart`'s `_redirect`:
+added `if (loggedIn && matchedRoute == null && state.uri.path == '/') return
+'/home';`, scoped specifically to `/` (not every unmatched location) so a
+genuinely bad deep link still shows `NotFoundPage` — verified by a
+dedicated regression test that the fix doesn't swallow real 404s.
+**Test-first**: a failing test was written and confirmed red *before* the
+fix (a route fixture matching `apps/mobile`'s real table — no `/` route —
+plus an authenticated session landing on `/`, asserting `NotFoundPage`
+was absent; it failed as expected against the pre-fix code), then green
+after. Additionally verified with a real end-to-end simulation (real,
+non-mocked `SecureTokenStorage`-backed session written *before* the only
+`configureDependencies()` call in the test, a fresh `App()` boot, zero
+manual `router.go()`/`setAuthenticated()` calls) — confirmed this
+specific test also goes red with the fix reverted and green with it
+restored, so it's proven to exercise the real bug, not something
+adjacent to it. `packages/shared`'s test count: 27 → 29.
+
+**Carry this forward**: any future router change must keep in mind that
+`apps/mobile` relies on `AppRouter`'s default `initialLocation` (`/`)
+rather than setting one explicitly — a genuinely equivalent fix would
+also be "set `initialLocation: '/home'` (or `/login`) explicitly in
+`apps/mobile`'s `AppRouter` construction," but the `_redirect`-level fix
+was chosen instead because it protects every consumer of `AppRouter`
+(this app and the starter kit template both), not just this one call
+site. Same fix ported back to
+[flutter_starter_kit](https://github.com/MIT2010/flutter-monorepo) (the
+template this project was bootstrapped from) with its own ADR, since
+`packages/shared`'s `AppRouter` originates there — every project
+bootstrapped from the template going forward starts with the fix
+already in place.
+
 ---
 
 ## ⚠ Open item — `payment` status codes need real data to resolve
