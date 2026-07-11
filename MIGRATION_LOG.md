@@ -69,19 +69,33 @@ Found while scoping `auth`'s login migration (feature #3). Same treatment
 as the voucher trap (AUDIT.md §6): recorded here so they surface *before*
 the relevant future migration starts, not mid-way through it.
 
-**1. Login triggers a websocket connect + channel subscribe on success.**
-The old app's `AuthStateCubit.getProfile()` — called right after a
-successful login — calls `_connectToWebsocket()`, which does
-`ConnectUsecase` then `SubscribeUsecase` to a
-`conf.<psychologistId>` channel (`lib/src/core/shared/blocs/auth/auth_state_cubit.dart`,
-read in full). **`auth` is not cleanly separable from `websocket`/`counseling`
-in the old app**, even though `AUDIT.md` classifies them as three separate
-concerns. The login migration (feature #3) explicitly defers this side
-effect — documented in its own QA file, not silently dropped. **When
-`websocket` or `counseling` is migrated later, this is the connection
-point to wire back in** — check whether login's migrated version needs a
-follow-up change at that point (e.g. an optional post-login hook) rather
-than assuming `counseling`'s migration is fully self-contained.
+**1. Login triggers a websocket connect + channel subscribe on success —
+scope corrected 2026-07-11, narrower than originally written.** The old
+app's `AuthStateCubit.getProfile()` — called right after a successful
+login — calls `_connectToWebsocket()`, which does `ConnectUsecase` then
+`SubscribeUsecase` to a **`conf.<psychologistId>` channel specifically**
+(`lib/src/core/shared/blocs/auth/auth_state_cubit.dart`, read in full) —
+used for exam-confirmation/pass-fail push events that can arrive at any
+time, not tied to any one screen. The login migration (feature #3)
+explicitly defers this side effect — documented in its own QA file, not
+silently dropped.
+
+**Correction, found while auditing `counseling` (2026-07-11): this finding
+does NOT apply to `counseling`'s own chat channel, and `counseling`'s
+migration does not need to "wire this back in."** Read
+`ChatStateCubit._connectToWebsocket()` in full: it calls `SubscribeUsecase`
+directly, and `WebsocketDatasourceImpl.subscribe()` itself does
+`await connect(); // ensure connection` before subscribing — the chat
+feature opens its own websocket connection on demand, entirely
+independent of whatever `auth`'s login flow does or doesn't do. The
+`konseling.<voucher>` channel `counseling` subscribes to is a **different
+channel** from the `conf.<psychologistId>` one this finding is actually
+about. **This finding stays open and scoped exactly to
+`conf.<psychologistId>`** — relevant whenever a future feature needs
+app-wide, not-tied-to-one-screen push events (e.g. the exam-confirmation
+flow itself, or `dashboard`'s shell-level notification handling, see
+finding #6 below) — not to `counseling`, which was verified
+self-contained rather than assumed to be.
 
 **2. `dashboard/presentation/pages/account_page.dart` — ✅ Resolved
 2026-07-10.** Audited in full, then migrated. Real findings: `AccountPage`
@@ -121,11 +135,16 @@ credentials:
 - `counseling`'s `getChat` (`POST /api/chat/detail-conversation`) response
   is the **entire chat transcript** — caught by the response-side logger
   regardless of how the request itself was sent.
-- `sendMessage` uses `FormData.fromMap(...)`, which likely does *not* leak
-  its fields the same way (Dio's `FormData` has no meaningful `toString()`
-  override) — noted as a reasonable inference from reading the code, not
-  verified by execution. Don't assume it's safe without checking at
-  migration time.
+- `sendMessage` uses `FormData.fromMap(...)` — **✅ VERIFIED 2026-07-11,
+  no longer an inference.** Read `package:dio`'s own `lib/src/form_data.dart`
+  source directly: `FormData` declares no `toString()` override at all, so
+  `'Data: ${options.data}'` in the old app's `LoggerInterceptor.onRequest`
+  prints only `Instance of 'FormData'` for this call — the message text,
+  `sender_id`, and voucher code passed in `sendMessage`'s param map are
+  genuinely never reached by that log line. (`getChat`'s *response*, above,
+  is still a real leak — that's a `Map`/`List` from Dio's JSON transformer,
+  which *does* print its actual contents via `toString()`. Only the
+  `sendMessage` *request* side is what's cleared here.)
 
 **Already true, restated so it isn't missed**: this is automatically
 avoided the moment `test`/`counseling` go through the kit's own `core`
@@ -212,6 +231,32 @@ template this project was bootstrapped from) with its own ADR, since
 bootstrapped from the template going forward starts with the fix
 already in place.
 
+**6. Raw counseling message content is shown in system notifications —
+found while auditing `counseling` (2026-07-11), out of scope for
+`counseling`'s own migration, recorded now so it isn't rediscovered when
+`notification`/`dashboard` shell are eventually migrated.** The old app's
+`dashboard/presentation/widgets/dashboard_layout.dart` (the authenticated
+shell, not yet migrated) listens **globally** — regardless of which screen
+is on top — for the `sent` websocket event, and when the user isn't
+currently on that exact chat page:
+```dart
+_showNotification(title: 'Konseling', body: payload['message'], ...);
+```
+`NotificationLocalServiceImpl.show()` passes that `body` straight to
+`flutter_local_notifications`, which renders it in a real OS notification
+— **lock screen and notification shade included**, a materially more
+exposed surface than the in-app chat screen itself for what is
+psychological-counseling content. This is a `dashboard`-shell +
+`notification`-infrastructure concern, not `counseling`'s — `counseling`'s
+own migration (this slice) has no notification code and cannot fix or
+inherit this. **Recorded now, before those two are migrated, so this
+isn't "discovered" again mid-implementation**: when `notification` and
+the dashboard shell are eventually built, the message-content-in-notification-body
+behavior needs a **conscious decision, not a faithful port** — recommended
+default is a generic body ("Ada pesan baru dari psikolog"), not the raw
+message text, the same category of correction as `onboarding`'s
+storage-tier fix and permanent finding #4's face-image cleanup.
+
 ---
 
 ## ⚠ Open item — `payment` status codes need real data to resolve
@@ -240,7 +285,7 @@ audit doesn't have to rediscover this gap from scratch.
 | `dashboard` | belum (partial: `account_page` + `history` tabs resolved) | — | — | Hub with 3 bottom-nav tabs (Beranda/Riwayat/Akun). **`Akun` tab (`account_page.dart`) migrated 2026-07-10** — see permanent findings above and [docs/qa/account.md](docs/qa/account.md); landed as `packages/feature_profile`'s new content, not a new package. **`Riwayat` (history) tab migrated 2026-07-11** — landed as a new package, `packages/feature_history` (not folded into `feature_profile`, since this data comes from `payment`'s `/tes/list-voucher`, not `auth`'s `/auth/me`); see [docs/qa/history.md](docs/qa/history.md). `Beranda` (home feed) tab still belum — the hub's own 3-tab bottom-nav shell (`DashboardLayout`/`CustomBottomNavBar`) is also still belum, since the kit's `apps/mobile` currently uses AppBar-icon navigation instead; migrate after `about`/`payment`/`auth` dependencies as originally planned |
 | `auth` | Selesai (send-OTP + verify-OTP login, **project's first genuine "yes, UseCase is justified" case** — see below) — **CATATAN: countdown/expiry UI dan websocket-connect-on-login BELUM direplikasi (lihat catatan permanen di atas); register/KTP/selfie tetap di luar cakupan.** | 2026-07-10 | 2026-07-10 | Feature #3, foundational/highest fan-in — extends the kit's existing `authentication` package additively (new `SendOtpUseCase`/`VerifyOtpUseCase`/`OtpLoginCubit`/`OtpLoginPage`, all parallel to the existing email/password `LoginUseCase`/`LoginCubit`/`LoginPage`, which are untouched). **Resolves the open UseCase decision** (see above): both new usecases are justified by real ported validation (phone/OTP non-empty, `62` country-code prefix) from the old app's `AuthStateCubit`, not invented structure — the first two real "needs a UseCase" cases after `about`/`onboarding`'s two "doesn't" cases. `OtpLoginPage` is reached via `Navigator.push` from `LoginPage`, not a new `GoRoute` — avoids a real redirect-loop bug found in `AppRouter._redirect` (exact-match on `/login`, would reject a sibling route like `/login/otp`); `shared` was not touched. 30-test `authentication` baseline stayed exactly green, 28 tests added (58 total) — verified by name, not just count. **Extended again same day** to resolve the `dashboard`/`account_page` finding (see above): `SessionProfile` (`avatar`/`name`/`nik`) added as an entity separate from `User`, deliberately — `User` flows into `CrashReporter.setUserId`/`AnalyticsService.setUserId` (unwired today, but that's their whole purpose), and NIK must not travel there by accident. Stored alongside `User` in `SecureTokenStorage` (own key), cleared by the same `clear()` — verified with a real (non-mocked) storage backing, not assumed. `authentication` test count: 58 → 62. QA: [docs/qa/auth_login.md](docs/qa/auth_login.md) — sensitive-data checklist + real network/router/interactive-tap-through verification, including a real (not mock-server-only) login run through to `/home` with `/profile` and `/about` confirmed still reachable; [docs/qa/account.md](docs/qa/account.md) — the `SessionProfile`/NIK checklist and the real-storage clear() proof. |
 | `splash` | belum | — | — | Likely folds into app bootstrap, not a full package |
-| `counseling` | belum | — | — | Realtime (websocket) — migrate late. **Blocker check before starting:** (1) if its content uses markdown formatting, needs `design_system`'s markdown widget first — see `about`'s row, not yet built; (2) see permanent findings above — login's websocket-connect-on-success side effect was deferred during `auth`'s migration and needs to be reconnected here; (3) permanent finding #3 above — `getChat`'s transcript must never be printed by ad-hoc debug logging |
+| `counseling` | Selesai (session list + realtime chat thread, **first feature with a real websocket integration**) — **CATATAN: koneksi Pusher wire-level tidak diuji terhadap server sungguhan di sandbox ini (lihat docs/qa/counseling.md § Environment constraints); logika reconnect/backoff/filter event sepenuhnya diuji lewat fake gateway.** | 2026-07-11 | 2026-07-11 | Audited in full before any code (see the corrected permanent finding #1 above: chat is self-contained — `subscribe()` calls `connect()` itself, does **not** depend on `auth`'s deferred connect-on-login, which stays scoped to `conf.<psychologistId>` only), permanent finding #3's now-VERIFIED `sendMessage`/`FormData` safety, and the new permanent finding #6 (raw message content in system notifications — a `dashboard`/`notification` concern, not `counseling`'s). Markdown checked directly: **not used anywhere** in counseling. No image/attachment support exists in the old app's chat at all — confirmed by reading `ChatEntity`, `sendMessage`'s params, and `InputChatField`'s UI; nothing to migrate there. **Four approved design corrections, not faithful ports**: bounded exponential-backoff reconnect (`packages/feature_counseling/lib/src/realtime/reconnect_backoff.dart`, old app retried immediately, unconditionally, forever); explicit unsubscribe (and, if it's the last channel, disconnect) in `ChatCubit.close()` when the session hasn't ended (old app leaked the channel+socket for the rest of the app's life otherwise); the `sent`-event filter checks `kode_voucher` matches the open chat in addition to `sender_type != 'participant'` (old app only checked the latter — a latent cross-channel bug that matters here specifically because the socket gateway is a shared singleton, unlike the old app's per-feature instance); `ChatMessageStatus` only has `pending`/`sent`/`failed` — no fabricated `delivered`/`read`, since the old app's own `MessageStatus` enum with those values was purely decorative. No UseCase — all three endpoints are thin passthroughs, same conclusion as `about`/`onboarding`/`history`. `"Konseling"` on `feature_history`'s history tile now navigates to the real chat page (was a placeholder). QA: [docs/qa/counseling.md](docs/qa/counseling.md) — sensitive-data checklist for transcripts (same tier as raw test answers), the optimistic-send/echo-filter regression test, real network + real router verification. `feature_counseling` test count: 31 (new package). |
 | `payment` | belum (partial: read-only `list-voucher` resolved via `dashboard`'s Riwayat tab) | — | — | Large, coupled with dashboard. Full endpoint/entity map done in the joint `payment`/`test`/`counseling`/`websocket` audit (2026-07-10). **`GET /tes/list-voucher` (read-only) migrated 2026-07-11** as part of the "Riwayat + sertifikat" slice — see `dashboard`'s row and [docs/qa/history.md](docs/qa/history.md); this is a read path only, not a status-line change for `payment` itself. **Open item above still applies**: `'PT'`/`'TP'` status codes need real API data before the write-path (create voucher → demography → payment → confirmation) can be audited in detail |
 | `test` | belum (partial: read-only certificate view resolved) | — | — | Largest, camera+face+websocket+screenshot — migrate last. **`certificate_page.dart` (read-only PDF viewer) migrated 2026-07-11** as part of the "Riwayat + sertifikat" slice, landed in `packages/feature_history` rather than a `feature_test` package — see [docs/qa/history.md](docs/qa/history.md). Deliberately the one piece of `test` extractable without inheriting camera/websocket/write-path risk; the actual test-taking flow (questions/timer/face-proctoring) is untouched. **Blocker check before starting the rest:** (1) if its content uses markdown formatting, needs `design_system`'s markdown widget first — see `about`'s row, not yet built; (2) permanent finding #3 above — never ad-hoc-log raw test answers; (3) permanent finding #4 above — captured face images need explicit cleanup added, not ported as-is; (4) no `NSCameraUsageDescription`/Android camera permission found anywhere in the old app (native inventory, 2026-07-10) — must be added deliberately, there's no working old-app iOS behavior to match |
 

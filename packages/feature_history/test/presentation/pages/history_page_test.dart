@@ -34,6 +34,15 @@ void main() {
               ),
             ),
           ),
+          GoRoute(
+            path: '/chat/:code',
+            builder: (context, state) => Scaffold(
+              body: Text(
+                'chat-page:${state.pathParameters['code']}:'
+                '${state.uri.queryParameters['psychologist']}',
+              ),
+            ),
+          ),
         ],
       ),
     );
@@ -147,7 +156,8 @@ void main() {
   );
 
   testWidgets(
-    '"Konseling" for a counseling item shows the placeholder dialog',
+    '"Konseling" navigates to the real chat page now that counseling is '
+    'migrated — this was a placeholder dialog before',
     (tester) async {
       final item = passedItem.copyWith(status: 'Konseling');
       when(() => historyCubit.state).thenReturn(HistoryState.loaded([item]));
@@ -159,10 +169,7 @@ void main() {
       await tester.tap(find.text('Konseling').last);
       await tester.pumpAndSettle();
 
-      expect(
-        find.text('Fitur ini belum tersedia. Coba lagi nanti.'),
-        findsOneWidget,
-      );
+      expect(find.text('chat-page:ABC123:Budi'), findsOneWidget);
     },
   );
 

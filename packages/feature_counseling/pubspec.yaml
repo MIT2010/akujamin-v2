@@ -1,0 +1,49 @@
+name: feature_counseling
+description: >-
+  Counseling chat with a psychologist — migrated from the old app's
+  `counseling` feature (session list + realtime chat thread). Deliberately
+  self-contained for its own websocket connection lifecycle (audited: chat
+  subscribe() calls connect() itself, independent of auth's deferred
+  connect-on-login — see MIGRATION_LOG.md's corrected permanent finding
+  #1). Zero image/attachment support — confirmed none exists in the old
+  app either.
+version: 0.0.1
+publish_to: none
+
+resolution: workspace
+
+environment:
+  sdk: ^3.12.2
+  flutter: ">=1.17.0"
+
+dependencies:
+  authentication:
+    path: ../authentication
+  core:
+    path: ../core
+  design_system:
+    path: ../design_system
+  shared:
+    path: ../shared
+  dart_pusher_channels: ^1.3.1
+  flutter:
+    sdk: flutter
+  flutter_bloc: ^9.1.1
+  freezed_annotation: ^3.1.0
+  go_router: ^17.3.0
+  injectable: ^3.0.0
+  intl: ^0.20.2
+  json_annotation: ^4.12.0
+
+dev_dependencies:
+  bloc_test: ^10.0.0
+  build_runner: ^2.4.13
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+  freezed: ^3.2.5
+  injectable_generator: ^3.0.0
+  json_serializable: ^6.14.0
+  mocktail: ^1.0.4
+
+flutter:

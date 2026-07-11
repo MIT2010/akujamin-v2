@@ -6,6 +6,7 @@ import 'package:authentication/src/di/authentication_module.module.dart';
 import 'package:core/core.dart';
 import 'package:core/src/di/core_module.module.dart';
 import 'package:feature_about/src/di/feature_about_module.module.dart';
+import 'package:feature_counseling/src/di/feature_counseling_module.module.dart';
 import 'package:feature_history/src/di/feature_history_module.module.dart';
 import 'package:feature_home/src/di/feature_home_module.module.dart';
 import 'package:feature_onboarding/src/di/feature_onboarding_module.module.dart';
@@ -35,6 +36,7 @@ import 'injection.config.dart';
     ExternalModule(FeatureAboutPackageModule),
     ExternalModule(FeatureOnboardingPackageModule),
     ExternalModule(FeatureHistoryPackageModule),
+    ExternalModule(FeatureCounselingPackageModule),
   ],
 )
 Future<void> configureDependencies({required Env env}) async {

@@ -1,6 +1,7 @@
 import 'package:authentication/authentication.dart';
 import 'package:design_system/design_system.dart';
 import 'package:feature_about/feature_about.dart';
+import 'package:feature_counseling/feature_counseling.dart';
 import 'package:feature_history/feature_history.dart';
 import 'package:feature_home/feature_home.dart';
 import 'package:feature_onboarding/feature_onboarding.dart';
@@ -41,4 +42,9 @@ final _routes = <RouteBase>[
     path: '/certificate',
     builder: (context, state) => const CertificatePage(),
   ),
+  GoRoute(
+    path: '/counseling',
+    builder: (context, state) => const CounselingListPage(),
+  ),
+  GoRoute(path: '/chat/:code', builder: (context, state) => const ChatPage()),
 ];

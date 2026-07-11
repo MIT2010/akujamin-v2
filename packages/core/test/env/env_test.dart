@@ -17,5 +17,10 @@ void main() {
       );
       expect(Env.current.apiUrl, endsWith('/v1'));
     });
+
+    test('wsScheme is ws outside prod', () {
+      expect(Env.current.isProd, isFalse);
+      expect(Env.current.wsScheme, 'ws');
+    });
   });
 }

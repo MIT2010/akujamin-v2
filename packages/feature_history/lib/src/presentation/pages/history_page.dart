@@ -22,12 +22,13 @@ import '../cubit/history_state.dart';
 /// `if (isTest || counseling || passed)` guard).
 ///
 /// **Explicit decision, not a dead button** (docs/qa/history.md): "Mulai
-/// Tes" (empty state), "Lanjutkan Tes", and "Konseling" all lead to
-/// features not migrated yet (`payment`'s create-voucher flow, `test`,
-/// `counseling`). Tapping them shows `AppDialog.info` saying so, rather
-/// than doing nothing or crashing on an unimplemented route. Only "Lihat
-/// Sertifikat" is real — `certificate` is the one piece of that graph this
-/// slice actually migrates.
+/// Tes" (empty state) and "Lanjutkan Tes" lead to features not migrated
+/// yet (`payment`'s create-voucher flow, `test`) — tapping them shows
+/// `AppDialog.info` saying so, rather than doing nothing or crashing on
+/// an unimplemented route. "Lihat Sertifikat" and, since `counseling`'s
+/// own migration (docs/qa/counseling.md), "Konseling" are both real —
+/// route-string navigation to `/certificate`/`/chat/:code`, no direct
+/// package dependency on `feature_history`'s part (§5).
 class HistoryPage extends StatelessWidget {
   const HistoryPage({super.key});
 
@@ -168,6 +169,18 @@ class _HistoryTile extends StatelessWidget {
                     if (_isPassed) {
                       context.push(
                         '/certificate?url=${Uri.encodeQueryComponent(item.certificateUrl ?? '')}',
+                      );
+                      return;
+                    }
+                    if (_isCounseling) {
+                      // Real navigation now that `counseling` is migrated
+                      // (feature_history doesn't depend on
+                      // feature_counseling directly — route-string
+                      // navigation, same as every other cross-feature
+                      // link in this app, §5).
+                      context.push(
+                        '/chat/${item.code}'
+                        '?psychologist=${Uri.encodeQueryComponent(item.psychologist)}',
                       );
                       return;
                     }
