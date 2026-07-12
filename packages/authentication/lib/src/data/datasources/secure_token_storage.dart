@@ -78,6 +78,7 @@ class SecureTokenStorage implements TokenProvider {
         'id': user.id,
         'email': user.email,
         'role': user.role,
+        'isRegistered': user.isRegistered,
       }),
     );
   }
@@ -91,6 +92,9 @@ class SecureTokenStorage implements TokenProvider {
       id: json['id'] as String,
       email: json['email'] as String,
       role: json['role'] as String,
+      // Absent for anything cached before this field existed -- defaults
+      // false the same way the entity itself does, not a crash.
+      isRegistered: json['isRegistered'] as bool? ?? false,
     );
   }
 

@@ -22,5 +22,8 @@ abstract class UserModel with _$UserModel {
   factory UserModel.fromJson(Map<String, dynamic> json) =>
       _$UserModelFromJson(json);
 
+  // No isRegistered source in this response (the synthetic email/password
+  // login flow, unrelated to the real akujamin backend's register concept)
+  // -- defaults false, matching the entity's own default.
   User toEntity() => User(id: id, email: email, role: role);
 }

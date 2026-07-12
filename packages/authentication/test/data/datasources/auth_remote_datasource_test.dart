@@ -1,5 +1,6 @@
 import 'package:authentication/authentication.dart';
 import 'package:core/core.dart';
+import 'package:dio/dio.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 
@@ -11,6 +12,7 @@ void main() {
 
   setUpAll(() {
     registerFallbackValue(<String, dynamic>{});
+    registerFallbackValue(FormData());
   });
 
   setUp(() {
@@ -153,5 +155,80 @@ void main() {
     expect(value.id, '1');
     expect(value.avatar, 'https://example.com/a.png');
     expect(value.nik, '1234567890123456');
+  });
+
+  test('extractKtp posts to /registrasi/ktp with the ktp and image multipart '
+      'fields, returns the raw envelope', () async {
+    when(
+      () => client.multipart<Map<String, dynamic>>(
+        '/registrasi/ktp',
+        data: any(named: 'data'),
+        parser: any(named: 'parser'),
+      ),
+    ).thenAnswer((invocation) async {
+      final parser =
+          invocation.namedArguments[#parser]
+              as Map<String, dynamic> Function(dynamic);
+      return Ok(
+        parser({
+          'status': 'ok',
+          'data': {'name': 'MIRA SETIAWAN', 'nik': '31712345678111'},
+        }),
+      );
+    });
+
+    final result = await dataSource.extractKtp([1, 2, 3], [4, 5, 6]);
+
+    expect(result.isOk, isTrue);
+    final envelope = (result as Ok<Failure, Map<String, dynamic>>).value;
+    expect(envelope['status'], 'ok');
+
+    final captured =
+        verify(
+              () => client.multipart<Map<String, dynamic>>(
+                '/registrasi/ktp',
+                data: captureAny(named: 'data'),
+                parser: any(named: 'parser'),
+              ),
+            ).captured.single
+            as FormData;
+    expect(captured.files.map((e) => e.key), containsAll(['ktp', 'image']));
+  });
+
+  test('submitRegistration posts to /registrasi/save with the form fields '
+      'plus a foto multipart field', () async {
+    when(
+      () => client.multipart<Map<String, dynamic>>(
+        '/registrasi/save',
+        data: any(named: 'data'),
+        parser: any(named: 'parser'),
+      ),
+    ).thenAnswer((invocation) async {
+      final parser =
+          invocation.namedArguments[#parser]
+              as Map<String, dynamic> Function(dynamic);
+      return Ok(parser({'status': 'ok'}));
+    });
+
+    final result = await dataSource.submitRegistration(
+      {'nik': '31712345678111', 'tgl_lahir': '1986-02-18'},
+      [4, 5, 6],
+    );
+
+    expect(result.isOk, isTrue);
+
+    final captured =
+        verify(
+              () => client.multipart<Map<String, dynamic>>(
+                '/registrasi/save',
+                data: captureAny(named: 'data'),
+                parser: any(named: 'parser'),
+              ),
+            ).captured.single
+            as FormData;
+    final fieldsMap = {for (final e in captured.fields) e.key: e.value};
+    expect(fieldsMap['nik'], '31712345678111');
+    expect(fieldsMap['tgl_lahir'], '1986-02-18');
+    expect(captured.files.map((e) => e.key), contains('foto'));
   });
 }

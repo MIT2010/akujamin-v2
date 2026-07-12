@@ -68,9 +68,32 @@ class HomeView extends StatelessWidget {
           IconButton(
             icon: const Icon(Icons.payment_outlined),
             tooltip: 'Pembayaran',
-            // Same route-string navigation as the other buttons here —
-            // features never depend on each other directly (§5).
-            onPressed: () => context.push('/payment'),
+            // Mandatory gate (not the bare route-string push the other
+            // buttons here use): the old app's "Tes Psikologi" menu checks
+            // `!user.isRegistered` before ever reaching payment
+            // (`home_menu_config.dart`), redirecting to `register` instead
+            // — a real access gate, not a decorative banner. This button
+            // had no such check until now, a live gap this migration only
+            // just found (`register` didn't exist yet when `payment` was
+            // wired up). `context.push<bool>('/register')` — a `bool?`
+            // result, discarded here on purpose: `RegisterCubit.submit()`
+            // already refreshes `AuthCubit`'s session on success, so the
+            // next tap of this same button re-reads the now-current
+            // `isRegistered` from `AuthCubit.state` itself, no manual
+            // re-check needed.
+            onPressed: () async {
+              final user = switch (context.read<AuthCubit>().state) {
+                AuthAuthenticated(:final user) => user,
+                _ => null,
+              };
+
+              if (user != null && !user.isRegistered) {
+                await context.push<bool>('/register');
+                return;
+              }
+
+              if (context.mounted) context.push('/payment');
+            },
           ),
           IconButton(
             icon: const Icon(Icons.person),

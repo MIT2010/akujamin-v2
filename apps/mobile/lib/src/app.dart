@@ -32,6 +32,11 @@ class App extends StatelessWidget {
 
 final _routes = <RouteBase>[
   GoRoute(path: '/login', builder: (context, state) => const LoginPage()),
+  // A real GoRoute, unlike OtpLoginPage's Navigator.push workaround —
+  // AppRouter._redirect has no special case for '/register' the way it
+  // does for '/login', so an authenticated user landing here just falls
+  // through the normal `loggedIn` branch and renders normally.
+  GoRoute(path: '/register', builder: (context, state) => const RegisterPage()),
   GoRoute(path: '/home', builder: (context, state) => const HomePage()),
   GoRoute(path: '/profile', builder: (context, state) => const ProfilePage()),
   GoRoute(path: '/about', builder: (context, state) => const AboutPage()),

@@ -103,9 +103,10 @@ there was for `auth`'s tokens.
 
 ## 5. Explicitly out of scope for this checklist
 
-- `register`/KTP/selfie capture — a separate flow with its own sensitive-data
-  checklist (ID document images, a stricter category than proctoring frames)
-  when that's migrated. Not folded in here.
+- `register`/KTP/selfie capture — a separate flow, migrated later with its
+  own sensitive-data checklist, [docs/qa/register.md](register.md) (ID
+  document images, a stricter category than proctoring frames). Not
+  folded in here.
 - `matchFace`/`TestRepository.matchFace()` — dead code, confirmed via
   exhaustive grep not called from anywhere in the presentation layer, not
   ported.

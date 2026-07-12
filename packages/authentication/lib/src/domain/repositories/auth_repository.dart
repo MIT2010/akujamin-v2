@@ -27,4 +27,34 @@ abstract class AuthRepository {
   Future<Result<Failure, void>> logout();
   Future<User?> getCachedUser();
   Future<SessionProfile?> getCachedSessionProfile();
+
+  /// Server-side KTP OCR — sends both images (KTP scan *and* the
+  /// already-captured selfie) to the same endpoint, exactly as the old app
+  /// does (`_extractKTP` in `register_state_cubit.dart`); the client has no
+  /// visibility into why the server wants both (a plausible read is a
+  /// face-match check against the KTP photo, same as `test`'s proctoring,
+  /// but that's inferred, not confirmed from server behavior). Returns the
+  /// raw extracted field map — same shape `formResults` already uses
+  /// (label -> value), no invented typed structure where the old app never
+  /// had one either.
+  Future<Result<Failure, Map<String, String>>> extractKtp({
+    required List<int> ktpImageBytes,
+    required List<int> selfieImageBytes,
+  });
+
+  /// Final registration submit. Pure pass-through at this layer — the real
+  /// validation (all fields filled, NIK length) lives in
+  /// `CompleteRegistrationUseCase`, not here (§21).
+  Future<Result<Failure, void>> submitRegistration({
+    required Map<String, String> formData,
+    required List<int> selfieImageBytes,
+  });
+
+  /// Re-fetches `/auth/me` and persists the refreshed [User]/[SessionProfile]
+  /// — same shape as [verifyOtp]'s second half, without the OTP step. Used
+  /// after a successful registration to pick up the server's now-`true`
+  /// `is_regis` without requiring a fresh login (mirrors the old app's
+  /// `HomePage._makeProfile()`, which calls `AuthStateCubit.getProfile()`
+  /// again rather than setting the flag locally).
+  Future<Result<Failure, (User, SessionProfile)>> refreshProfile();
 }

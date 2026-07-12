@@ -25,6 +25,35 @@ void main() {
       expect(entity.id, '1');
       expect(entity.email, 'a@example.com');
       expect(entity.role, 'admin');
+      expect(entity.isRegistered, isFalse);
+    });
+
+    test('fromJson reads is_regis into isRegistered', () {
+      final decoded = UserProfileModel.fromJson({
+        'id': '1',
+        'email': 'a@example.com',
+        'role': 'admin',
+        'name': 'Ani',
+        'avatars': 'https://example.com/a.png',
+        'nik': '1234567890123456',
+        'is_regis': true,
+      });
+
+      expect(decoded.isRegistered, isTrue);
+      expect(decoded.toEntity().isRegistered, isTrue);
+    });
+
+    test('isRegistered defaults to false when is_regis is absent', () {
+      final decoded = UserProfileModel.fromJson({
+        'id': '1',
+        'email': 'a@example.com',
+        'role': 'admin',
+        'name': 'Ani',
+        'avatars': 'https://example.com/a.png',
+        'nik': '1234567890123456',
+      });
+
+      expect(decoded.isRegistered, isFalse);
     });
 
     test('toSessionProfile maps avatar/name/nik to a SessionProfile', () {

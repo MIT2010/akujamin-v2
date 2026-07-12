@@ -27,12 +27,30 @@ abstract class UserProfileModel with _$UserProfileModel {
     required String name,
     @JsonKey(name: 'avatars') required String avatar,
     required String nik,
+    // Old app's raw `/api/auth/me` response reads as `data['is_regis']` —
+    // a field *sibling* to the `data` object the rest of these fields come
+    // from (`lib/src/features/auth/data/repositories/auth_repo_impl.dart`,
+    // `final userMap = data['data']; UserModel.fromJson(userMap,
+    // data['is_regis'])`), not nested inside it. This model parses every
+    // field (including this one) at the top level of whatever `json` it's
+    // handed, matching the parsing this class already had before this
+    // field was added — consistent with the existing code, not a new
+    // assumption introduced here. Whether the *real* migrated `/auth/me`
+    // (a different route version, `v1` vs the old app's `api`) actually
+    // returns a flat envelope, or whether this whole model has been parsing
+    // an incorrect level since it was first written, was not re-verified
+    // here — no live response was available to check against (same
+    // limitation as docs/qa/register.md's other unverified claims). Not
+    // fixed as a side effect of this feature; flagged for separate
+    // real-backend verification.
+    @JsonKey(name: 'is_regis') @Default(false) bool isRegistered,
   }) = _UserProfileModel;
 
   factory UserProfileModel.fromJson(Map<String, dynamic> json) =>
       _$UserProfileModelFromJson(json);
 
-  User toEntity() => User(id: id, email: email, role: role);
+  User toEntity() =>
+      User(id: id, email: email, role: role, isRegistered: isRegistered);
 
   SessionProfile toSessionProfile() =>
       SessionProfile(avatar: avatar, name: name, nik: nik);

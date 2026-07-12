@@ -80,4 +80,57 @@ class AuthRepositoryImpl implements AuthRepository {
   @override
   Future<SessionProfile?> getCachedSessionProfile() =>
       _tokenStorage.getCachedSessionProfile();
+
+  @override
+  Future<Result<Failure, Map<String, String>>> extractKtp({
+    required List<int> ktpImageBytes,
+    required List<int> selfieImageBytes,
+  }) async {
+    final result = await _remote.extractKtp(ktpImageBytes, selfieImageBytes);
+
+    return result.fold(Err.new, (envelope) {
+      if (envelope['status'] != 'ok') {
+        return Err(
+          ServerFailure(
+            envelope['message'] as String? ?? 'Gagal mengekstrak KTP.',
+          ),
+        );
+      }
+
+      final data = envelope['data'] as Map<String, dynamic>? ?? const {};
+      return Ok(
+        data.map((key, value) => MapEntry(key, value?.toString() ?? '')),
+      );
+    });
+  }
+
+  @override
+  Future<Result<Failure, void>> submitRegistration({
+    required Map<String, String> formData,
+    required List<int> selfieImageBytes,
+  }) async {
+    final result = await _remote.submitRegistration(formData, selfieImageBytes);
+
+    return result.fold(Err.new, (envelope) {
+      if (envelope['status'] != 'ok') {
+        return Err(
+          ServerFailure(envelope['message'] as String? ?? 'Registrasi gagal.'),
+        );
+      }
+      return const Ok(null);
+    });
+  }
+
+  @override
+  Future<Result<Failure, (User, SessionProfile)>> refreshProfile() async {
+    final profileResult = await _remote.getProfile();
+
+    return profileResult.fold((failure) async => Err(failure), (profile) async {
+      final user = profile.toEntity();
+      final sessionProfile = profile.toSessionProfile();
+      await _tokenStorage.saveUser(user);
+      await _tokenStorage.saveSessionProfile(sessionProfile);
+      return Ok((user, sessionProfile));
+    });
+  }
 }

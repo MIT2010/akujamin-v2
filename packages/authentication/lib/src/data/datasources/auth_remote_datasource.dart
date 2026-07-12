@@ -1,4 +1,5 @@
 import 'package:core/core.dart';
+import 'package:dio/dio.dart';
 import 'package:injectable/injectable.dart';
 
 import '../models/user_model.dart';
@@ -49,11 +50,55 @@ class AuthRemoteDataSource {
   }
 
   /// Fetched right after a successful [verifyOtp] to get the user fields
-  /// the login-otp response doesn't include.
+  /// the login-otp response doesn't include. Also reused by
+  /// [AuthRepositoryImpl.refreshProfile] after a successful registration.
   Future<Result<Failure, UserProfileModel>> getProfile() {
     return _client.get(
       '/auth/me',
       parser: (json) => UserProfileModel.fromJson(json as Map<String, dynamic>),
+    );
+  }
+
+  /// `/registrasi/ktp` — same base path segment the old app used
+  /// (`/api/registrasi/ktp`), confirmed against the team's own
+  /// `PMI-API.postman_collection.json` (`API V2 > Registrasi > KTP`).
+  /// Returns the raw envelope — status-check and unwrapping happen at the
+  /// repository layer, same as every other datasource in this codebase.
+  Future<Result<Failure, Map<String, dynamic>>> extractKtp(
+    List<int> ktpImageBytes,
+    List<int> selfieImageBytes,
+  ) {
+    return _client.multipart<Map<String, dynamic>>(
+      '/registrasi/ktp',
+      data: FormData.fromMap({
+        'ktp': MultipartFile.fromBytes(ktpImageBytes, filename: 'ktp.jpg'),
+        'image': MultipartFile.fromBytes(
+          selfieImageBytes,
+          filename: 'selfie.jpg',
+        ),
+      }),
+      parser: (json) => json as Map<String, dynamic>,
+    );
+  }
+
+  /// `/registrasi/save` — confirmed against the same Postman collection
+  /// (`API V2 > Registrasi > Save Regis`), including the real example
+  /// field keys (`tgl_lahir`, `nik`, `foto`, ...) that motivated
+  /// `docs/qa/register.md`'s date-format finding.
+  Future<Result<Failure, Map<String, dynamic>>> submitRegistration(
+    Map<String, String> formData,
+    List<int> selfieImageBytes,
+  ) {
+    return _client.multipart<Map<String, dynamic>>(
+      '/registrasi/save',
+      data: FormData.fromMap({
+        ...formData,
+        'foto': MultipartFile.fromBytes(
+          selfieImageBytes,
+          filename: 'selfie.jpg',
+        ),
+      }),
+      parser: (json) => json as Map<String, dynamic>,
     );
   }
 }
