@@ -22,7 +22,8 @@ class FaceMatchDatasource {
       data: FormData.fromMap({
         'image': MultipartFile.fromBytes(imageBytes, filename: 'frame.jpg'),
       }),
-      parser: (json) => FaceMatchResultModel.fromJson(json as Map<String, dynamic>),
+      parser: (json) =>
+          FaceMatchResultModel.fromJson(json as Map<String, dynamic>),
     );
   }
 }

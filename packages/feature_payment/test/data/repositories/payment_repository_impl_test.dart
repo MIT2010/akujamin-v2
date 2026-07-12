@@ -59,9 +59,9 @@ void main() {
     });
 
     test('propagates a datasource failure as-is', () async {
-      when(() => remote.checkVoucher()).thenAnswer(
-        (_) async => const Err(NetworkFailure()),
-      );
+      when(
+        () => remote.checkVoucher(),
+      ).thenAnswer((_) async => const Err(NetworkFailure()));
 
       final result = await repository.checkVoucher();
 
@@ -76,10 +76,8 @@ void main() {
   group('PaymentRepositoryImpl.createVoucher', () {
     test('returns the new kode_voucher on success', () async {
       when(() => remote.createVoucher(any())).thenAnswer(
-        (_) async => Ok(<String, dynamic>{
-          'status': 'ok',
-          'kode_voucher': 'NEWCODE123',
-        }),
+        (_) async =>
+            Ok(<String, dynamic>{'status': 'ok', 'kode_voucher': 'NEWCODE123'}),
       );
 
       final result = await repository.createVoucher({'psikologi': '27'});

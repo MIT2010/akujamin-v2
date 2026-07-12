@@ -188,9 +188,9 @@ void main() {
       'the mandatory fix, not ported from the old app, proven against a '
       'real temp file rather than asserted from a comment',
       setUp: () {
-        when(() => repository.sendPayment(any())).thenAnswer(
-          (_) async => const Ok(null),
-        );
+        when(
+          () => repository.sendPayment(any()),
+        ).thenAnswer((_) async => const Ok(null));
       },
       build: build,
       seed: () {
@@ -214,17 +214,16 @@ void main() {
       'a cleanup failure never blocks a payment that already succeeded '
       'server-side',
       setUp: () {
-        when(() => repository.sendPayment(any())).thenAnswer(
-          (_) async => const Ok(null),
-        );
+        when(
+          () => repository.sendPayment(any()),
+        ).thenAnswer((_) async => const Ok(null));
       },
       build: build,
       // A path that never existed — cleanup's File.exists() check makes
       // this a no-op rather than a thrown exception, but this proves the
       // flow still reaches PaymentStep.review either way.
-      seed: () => const PaymentState(
-        pickedImagePath: '/nonexistent/path/proof.jpg',
-      ),
+      seed: () =>
+          const PaymentState(pickedImagePath: '/nonexistent/path/proof.jpg'),
       act: (cubit) => cubit.submitPayment(),
       verify: (cubit) {
         expect(cubit.state.step, PaymentStep.review);

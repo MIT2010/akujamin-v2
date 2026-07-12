@@ -47,10 +47,8 @@ class DemographyView extends StatelessWidget {
                     readOnly: form.readOnly,
                     options: options
                         ?.map(
-                          (o) => DynamicFormOption(
-                            label: o.label,
-                            value: o.value,
-                          ),
+                          (o) =>
+                              DynamicFormOption(label: o.label, value: o.value),
                         )
                         .toList(),
                     onChanged: (value) => cubit.setInput(form.label, value),

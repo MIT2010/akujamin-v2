@@ -3,8 +3,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:visibility_detector/visibility_detector.dart';
 
-Widget _wrap(Widget child) =>
-    MaterialApp(home: Scaffold(body: SingleChildScrollView(child: child)));
+Widget _wrap(Widget child) => MaterialApp(
+  home: Scaffold(body: SingleChildScrollView(child: child)),
+);
 
 void main() {
   // markdown_widget renders each block inside a VisibilityDetector, which
@@ -41,7 +42,8 @@ void main() {
         await tester.pumpWidget(
           _wrap(
             const AppMarkdownText(
-              data: '**Bold text**\n\n'
+              data:
+                  '**Bold text**\n\n'
                   '- First item\n'
                   '- Second item\n\n'
                   '[A link](https://example.com)',

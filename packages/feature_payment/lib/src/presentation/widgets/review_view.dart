@@ -49,7 +49,10 @@ class _PaymentSuccess extends StatelessWidget {
               const Text('Kode voucher'),
               Text(
                 voucherCode ?? '-',
-                style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 16),
+                style: const TextStyle(
+                  fontWeight: FontWeight.w700,
+                  fontSize: 16,
+                ),
               ),
               const SizedBox(height: AppSpacing.sm),
               const Text(

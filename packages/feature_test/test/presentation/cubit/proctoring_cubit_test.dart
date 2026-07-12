@@ -51,7 +51,7 @@ void main() {
 
   tearDown(() => gateway.dispose());
 
-  ProctoringCubit build() => ProctoringCubit(gateway, clock: clock.call);
+  ProctoringCubit build() => ProctoringCubit(gateway)..clock = clock.call;
 
   group('ProctoringCubit — face detection / grace period / violation', () {
     blocTest<ProctoringCubit, ProctoringState>(
@@ -127,7 +127,11 @@ void main() {
       expect: () => [
         isA<ProctoringDetecting>()
             .having((s) => s.status, 'status', AttentionStatus.attentive)
-            .having((s) => s.violationDuration, 'violationDuration', Duration.zero)
+            .having(
+              (s) => s.violationDuration,
+              'violationDuration',
+              Duration.zero,
+            )
             // matchStatus is still unknown at this point, so per the
             // "attentive but not yet matched" rule this is still flagged.
             .having((s) => s.isViolation, 'isViolation', isTrue),
@@ -163,13 +167,14 @@ void main() {
     blocTest<ProctoringCubit, ProctoringState>(
       'a notMatched result while attentive is itself a violation',
       build: build,
-      seed: () => const ProctoringState.detecting(
-        status: AttentionStatus.attentive,
-      ),
+      seed: () =>
+          const ProctoringState.detecting(status: AttentionStatus.attentive),
       act: (cubit) {
         cubit.start();
         gateway.emit(
-          const FaceMatchedEvent(FaceMatchResult(status: FaceMatchStatus.notMatched)),
+          const FaceMatchedEvent(
+            FaceMatchResult(status: FaceMatchStatus.notMatched),
+          ),
         );
       },
       verify: (cubit) {
@@ -181,71 +186,75 @@ void main() {
       'a match result is ignored while the face is not currently attentive '
       '— matching a face that is not even in frame is meaningless',
       build: build,
-      seed: () => const ProctoringState.detecting(
-        status: AttentionStatus.noFace,
-      ),
+      seed: () =>
+          const ProctoringState.detecting(status: AttentionStatus.noFace),
       act: (cubit) {
         cubit.start();
         gateway.emit(
-          const FaceMatchedEvent(FaceMatchResult(status: FaceMatchStatus.matched)),
-        );
-      },
-      expect: () => [],
-    );
-  });
-
-  group('ProctoringCubit — approved fix: camera failures never vanish silently', () {
-    blocTest<ProctoringCubit, ProctoringState>(
-      'a CameraUnavailableEvent moves the cubit into a hard, permanent '
-      'state carrying the specific failure reason — not folded into '
-      'AttentionStatus the way the old app conflated it',
-      build: build,
-      act: (cubit) {
-        cubit.start();
-        gateway.emit(
-          const CameraUnavailableEvent(
-            CameraFailure(
-              CameraFailureReason.requestedLensNotFound,
-              'Kamera yang diminta tidak tersedia di perangkat ini.',
-            ),
+          const FaceMatchedEvent(
+            FaceMatchResult(status: FaceMatchStatus.matched),
           ),
         );
       },
-      expect: () => [
-        const ProctoringState.cameraUnavailable(
-          reason: CameraFailureReason.requestedLensNotFound,
-          message: 'Kamera yang diminta tidak tersedia di perangkat ini.',
-        ),
-      ],
-    );
-
-    blocTest<ProctoringCubit, ProctoringState>(
-      'an uncaught stream error (not even a CameraUnavailableEvent) still '
-      'surfaces as a state change — the old app\'s .listen() had no '
-      'onError at all, so this exact scenario left the UI silently stuck',
-      build: build,
-      act: (cubit) {
-        cubit.start();
-        gateway.emitError(Exception('unexpected'));
-      },
-      expect: () => [isA<ProctoringCameraUnavailable>()],
-    );
-
-    blocTest<ProctoringCubit, ProctoringState>(
-      'detection/match events are ignored once the camera has failed — '
-      'there is nothing meaningful left to transition through',
-      build: build,
-      seed: () => const ProctoringState.cameraUnavailable(
-        reason: CameraFailureReason.noCameraOnDevice,
-        message: 'Perangkat ini tidak memiliki kamera.',
-      ),
-      act: (cubit) {
-        cubit.start();
-        gateway.emit(const FaceDetectedEvent(AttentionStatus.attentive));
-      },
       expect: () => [],
     );
   });
+
+  group(
+    'ProctoringCubit — approved fix: camera failures never vanish silently',
+    () {
+      blocTest<ProctoringCubit, ProctoringState>(
+        'a CameraUnavailableEvent moves the cubit into a hard, permanent '
+        'state carrying the specific failure reason — not folded into '
+        'AttentionStatus the way the old app conflated it',
+        build: build,
+        act: (cubit) {
+          cubit.start();
+          gateway.emit(
+            const CameraUnavailableEvent(
+              CameraFailure(
+                CameraFailureReason.requestedLensNotFound,
+                'Kamera yang diminta tidak tersedia di perangkat ini.',
+              ),
+            ),
+          );
+        },
+        expect: () => [
+          const ProctoringState.cameraUnavailable(
+            reason: CameraFailureReason.requestedLensNotFound,
+            message: 'Kamera yang diminta tidak tersedia di perangkat ini.',
+          ),
+        ],
+      );
+
+      blocTest<ProctoringCubit, ProctoringState>(
+        'an uncaught stream error (not even a CameraUnavailableEvent) still '
+        'surfaces as a state change — the old app\'s .listen() had no '
+        'onError at all, so this exact scenario left the UI silently stuck',
+        build: build,
+        act: (cubit) {
+          cubit.start();
+          gateway.emitError(Exception('unexpected'));
+        },
+        expect: () => [isA<ProctoringCameraUnavailable>()],
+      );
+
+      blocTest<ProctoringCubit, ProctoringState>(
+        'detection/match events are ignored once the camera has failed — '
+        'there is nothing meaningful left to transition through',
+        build: build,
+        seed: () => const ProctoringState.cameraUnavailable(
+          reason: CameraFailureReason.noCameraOnDevice,
+          message: 'Perangkat ini tidak memiliki kamera.',
+        ),
+        act: (cubit) {
+          cubit.start();
+          gateway.emit(const FaceDetectedEvent(AttentionStatus.attentive));
+        },
+        expect: () => [],
+      );
+    },
+  );
 
   group('ProctoringCubit.close', () {
     test('tears down the gateway on close', () async {

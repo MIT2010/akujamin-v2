@@ -21,21 +21,18 @@ void main() {
       expect(status.status, StatusVoucher.needsPayment);
     });
 
-    test(
-      'maps anything else to underReview when pembayaran.status is not '
-      "'PAID' — no confirmed literal value beyond PT/TP exists, so this "
-      'must not guess a third literal code',
-      () {
-        final status = RegistrationStatusModel.fromJson(
-          infoRegistrasi: {'status_ujian': 'anything-else'},
-          demografi: {},
-          pembayaran: {'status': 'PENDING'},
-        );
+    test('maps anything else to underReview when pembayaran.status is not '
+        "'PAID' — no confirmed literal value beyond PT/TP exists, so this "
+        'must not guess a third literal code', () {
+      final status = RegistrationStatusModel.fromJson(
+        infoRegistrasi: {'status_ujian': 'anything-else'},
+        demografi: {},
+        pembayaran: {'status': 'PENDING'},
+      );
 
-        expect(status.status, StatusVoucher.underReview);
-        expect(status.isPaid, isFalse);
-      },
-    );
+      expect(status.status, StatusVoucher.underReview);
+      expect(status.isPaid, isFalse);
+    });
 
     test("maps to paid when pembayaran.status == 'PAID'", () {
       final status = RegistrationStatusModel.fromJson(

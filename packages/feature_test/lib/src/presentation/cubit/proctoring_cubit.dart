@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:core/core.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:injectable/injectable.dart';
 
@@ -23,17 +24,23 @@ import 'proctoring_state.dart';
 /// `onError` at all.
 @injectable
 class ProctoringCubit extends Cubit<ProctoringState> {
-  ProctoringCubit(this._gateway, {DateTime Function()? clock})
-    : _clock = clock ?? DateTime.now,
-      super(const ProctoringState.detecting());
+  ProctoringCubit(this._gateway) : super(const ProctoringState.detecting());
 
   final ProctoringGateway _gateway;
 
-  /// Injectable only so tests can drive the grace-period/violation-
+  /// Settable only so tests can drive the grace-period/violation-
   /// threshold logic with a fake clock instead of real multi-second
   /// `Future.delayed` waits — defaults to real time in production,
-  /// nothing about the actual behavior changes.
-  final DateTime Function() _clock;
+  /// nothing about the actual behavior changes. Deliberately **not** a
+  /// constructor parameter: `injectable`'s generator cannot resolve a
+  /// bare function-type constructor parameter (`DateTime Function()`)
+  /// at all — confirmed the hard way, it built cleanly with a plain
+  /// `dart run build_runner build` locally but failed in CI's `flutter
+  /// pub run build_runner build` with "Can not resolve function type."
+  /// A mutable field sidesteps DI resolution entirely since injectable
+  /// only inspects constructor parameters.
+  @visibleForTesting
+  DateTime Function() clock = DateTime.now;
 
   StreamSubscription<ProctoringEvent>? _sub;
 
@@ -74,7 +81,7 @@ class ProctoringCubit extends Cubit<ProctoringState> {
     final current = state;
     if (current is! ProctoringDetecting) return;
 
-    final now = _clock();
+    final now = clock();
 
     if (status == AttentionStatus.attentive) {
       _violationStartedAt = null;

@@ -33,67 +33,62 @@ void main() {
   });
 
   group('CameraGatewayImpl.initialize', () {
-    test(
-      'approved fix: never substitutes a different camera than requested '
-      '— returns a distinct requestedLensNotFound failure instead of the '
-      'old app\'s silent cameras.first fallback',
-      () async {
-        when(() => datasource.availableCameras()).thenAnswer(
-          (_) async => [_FakeCameraDescription(CameraLensDirection.back)],
-        );
+    test('approved fix: never substitutes a different camera than requested '
+        '— returns a distinct requestedLensNotFound failure instead of the '
+        'old app\'s silent cameras.first fallback', () async {
+      when(() => datasource.availableCameras()).thenAnswer(
+        (_) async => [_FakeCameraDescription(CameraLensDirection.back)],
+      );
 
-        final result = await gateway.initialize(
-          const CameraConfig(
-            lensDirection: CameraLensDirection.front,
-            resolutionPreset: ResolutionPreset.low,
-          ),
-        );
+      final result = await gateway.initialize(
+        const CameraConfig(
+          lensDirection: CameraLensDirection.front,
+          resolutionPreset: ResolutionPreset.low,
+        ),
+      );
 
-        expect(result.isErr, isTrue);
-        final failure = (result as Err<Failure, void>).failure;
-        expect(failure, isA<CameraFailure>());
-        expect(
-          (failure as CameraFailure).reason,
-          CameraFailureReason.requestedLensNotFound,
-        );
+      expect(result.isErr, isTrue);
+      final failure = (result as Err<Failure, void>).failure;
+      expect(failure, isA<CameraFailure>());
+      expect(
+        (failure as CameraFailure).reason,
+        CameraFailureReason.requestedLensNotFound,
+      );
 
-        // The critical assertion: the datasource's initialize() — which
-        // would actually open a camera stream — must never be called
-        // with the wrong lens. No substitution happens at all.
-        verifyNever(() => datasource.initialize(any(), any()));
-      },
-    );
+      // The critical assertion: the datasource's initialize() — which
+      // would actually open a camera stream — must never be called
+      // with the wrong lens. No substitution happens at all.
+      verifyNever(() => datasource.initialize(any(), any()));
+    });
 
-    test(
-      'returns noCameraOnDevice, not an uncaught StateError, when the '
-      'device has zero cameras at all',
-      () async {
-        when(
-          () => datasource.availableCameras(),
-        ).thenAnswer((_) async => []);
+    test('returns noCameraOnDevice, not an uncaught StateError, when the '
+        'device has zero cameras at all', () async {
+      when(() => datasource.availableCameras()).thenAnswer((_) async => []);
 
-        final result = await gateway.initialize(
-          const CameraConfig(
-            lensDirection: CameraLensDirection.front,
-            resolutionPreset: ResolutionPreset.low,
-          ),
-        );
+      final result = await gateway.initialize(
+        const CameraConfig(
+          lensDirection: CameraLensDirection.front,
+          resolutionPreset: ResolutionPreset.low,
+        ),
+      );
 
-        expect(result.isErr, isTrue);
-        final failure = (result as Err<Failure, void>).failure;
-        expect(
-          (failure as CameraFailure).reason,
-          CameraFailureReason.noCameraOnDevice,
-        );
-      },
-    );
+      expect(result.isErr, isTrue);
+      final failure = (result as Err<Failure, void>).failure;
+      expect(
+        (failure as CameraFailure).reason,
+        CameraFailureReason.noCameraOnDevice,
+      );
+    });
 
     test(
       'initializes normally when the requested lens is actually available',
       () async {
         final front = _FakeCameraDescription(CameraLensDirection.front);
         when(() => datasource.availableCameras()).thenAnswer(
-          (_) async => [_FakeCameraDescription(CameraLensDirection.back), front],
+          (_) async => [
+            _FakeCameraDescription(CameraLensDirection.back),
+            front,
+          ],
         );
         when(
           () => datasource.initialize(any(), any()),
@@ -152,7 +147,9 @@ void main() {
     });
 
     test('maps a capture-time exception to captureFailed', () async {
-      when(() => datasource.captureImage()).thenThrow(Exception('no controller'));
+      when(
+        () => datasource.captureImage(),
+      ).thenThrow(Exception('no controller'));
 
       final result = await gateway.captureImage();
 
@@ -169,16 +166,19 @@ void main() {
   });
 
   group('CameraGatewayImpl passthrough', () {
-    test('dispose/isInitialized/controller delegate to the datasource', () async {
-      when(() => datasource.dispose()).thenAnswer((_) async {});
-      when(() => datasource.isInitialized).thenReturn(true);
-      when(() => datasource.controller).thenReturn(null);
+    test(
+      'dispose/isInitialized/controller delegate to the datasource',
+      () async {
+        when(() => datasource.dispose()).thenAnswer((_) async {});
+        when(() => datasource.isInitialized).thenReturn(true);
+        when(() => datasource.controller).thenReturn(null);
 
-      await gateway.dispose();
+        await gateway.dispose();
 
-      expect(gateway.isInitialized, isTrue);
-      expect(gateway.controller, isNull);
-      verify(() => datasource.dispose()).called(1);
-    });
+        expect(gateway.isInitialized, isTrue);
+        expect(gateway.controller, isNull);
+        verify(() => datasource.dispose()).called(1);
+      },
+    );
   });
 }

@@ -59,7 +59,9 @@ class PaymentMethodView extends StatelessWidget {
                             if (!context.mounted) return;
                             ScaffoldMessenger.of(context).showSnackBar(
                               const SnackBar(
-                                content: Text('Nomor rekening berhasil disalin'),
+                                content: Text(
+                                  'Nomor rekening berhasil disalin',
+                                ),
                               ),
                             );
                           },
@@ -114,7 +116,8 @@ class _ExpirationCountdown extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return BlocBuilder<PaymentCubit, PaymentState>(
-      buildWhen: (p, c) => p.isExpired != c.isExpired || p.remaining != c.remaining,
+      buildWhen: (p, c) =>
+          p.isExpired != c.isExpired || p.remaining != c.remaining,
       builder: (context, state) {
         if (state.isExpired) {
           return const Text(
@@ -125,8 +128,14 @@ class _ExpirationCountdown extends StatelessWidget {
 
         final duration = state.remaining ?? Duration.zero;
         final hours = duration.inHours.remainder(60).toString().padLeft(2, '0');
-        final minutes = duration.inMinutes.remainder(60).toString().padLeft(2, '0');
-        final seconds = duration.inSeconds.remainder(60).toString().padLeft(2, '0');
+        final minutes = duration.inMinutes
+            .remainder(60)
+            .toString()
+            .padLeft(2, '0');
+        final seconds = duration.inSeconds
+            .remainder(60)
+            .toString()
+            .padLeft(2, '0');
 
         return Text(
           'Lakukan pembayaran sebelum $hours:$minutes:$seconds',
