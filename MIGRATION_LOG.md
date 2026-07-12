@@ -257,6 +257,45 @@ default is a generic body ("Ada pesan baru dari psikolog"), not the raw
 message text, the same category of correction as `onboarding`'s
 storage-tier fix and permanent finding #4's face-image cleanup.
 
+**7. `CameraGateway` never silently substitutes a camera — approved fix,
+found during the camera prerequisite audit (2026-07-12).** The old app's
+`CameraDatasourceImpl.initialize()` fell back to `cameras.first` whenever
+the requested lens direction (`front`) wasn't found
+(`cameras.firstWhere(..., orElse: () => cameras.first)`), and let a
+genuinely camera-less device throw an uncaught `StateError` — neither
+case was ever caught anywhere in the call chain (`CameraRepositoryImpl.
+startDetection()` awaited `camera.initialize()` inside an `async*`
+generator with no try/catch, and `FaceDetectorStateCubit.start()`'s
+`.listen()` had no `onError`). For proctoring specifically, silently
+analyzing the wrong camera's feed invalidates the entire mechanism
+without anyone knowing — not just a UX gap. `packages/shared`'s
+`CameraGateway.initialize()` now returns `Result<Failure, void>` with a
+new `CameraFailure`/`CameraFailureReason` (`noCameraOnDevice`/
+`requestedLensNotFound`/`permissionDenied`/`captureFailed`) added to
+`core`'s sealed `Failure`; `feature_test`'s `ProctoringCubit` reacts to
+any camera failure as an immediate, permanent
+`ProctoringState.cameraUnavailable` — never folded into `AttentionStatus`
+the way the old app's `noCamera` value was, so messaging stays accurate
+per failure reason. Proven directly: `camera_gateway_impl_test.dart`
+asserts the datasource's `initialize()` is never even called with the
+wrong lens (`verifyNever`), not just that the right `Failure` comes back.
+
+**8. Screenshot protection does not actually engage during the live test
+in the old app — found during the camera prerequisite audit
+(2026-07-12), relevant to `test`'s own migration, not fixed yet (no
+`test`-taking UI exists in this repo to wire it into).** `TestPage.
+initState()`'s `sl<DisableScreenshotUsecase>().call();` is commented out
+in the old app's source. Three call sites *enable* screenshots back
+(`test_routes.dart`'s `DoubleBackToExitWrapper.onBack`, `test_header.
+dart`'s back button, `TestStatus.done`'s handler in `test_page.dart`) —
+**zero live call sites disable it**. Screenshots are allowed throughout
+the entire test in the shipped app, despite the anti-screenshot
+infrastructure existing. Flagged now so it isn't silently re-discovered
+(or worse, silently re-ported as-is) when `test`'s question/answer flow
+is actually built — needs a conscious "fix, don't port" decision like
+permanent finding #4, not an assumption that a commented-out line was
+intentional.
+
 ---
 
 ## ✓ Resolved — `payment` status codes (was: open item above)
@@ -324,7 +363,7 @@ unsubscribes and clears on dispose regardless of status, relying on
 | `splash` | belum | — | — | Likely folds into app bootstrap, not a full package |
 | `counseling` | Selesai (session list + realtime chat thread, **first feature with a real websocket integration**) — **CATATAN: koneksi Pusher wire-level tidak diuji terhadap server sungguhan di sandbox ini (lihat docs/qa/counseling.md § Environment constraints); logika reconnect/backoff/filter event sepenuhnya diuji lewat fake gateway.** | 2026-07-11 | 2026-07-11 | Audited in full before any code (see the corrected permanent finding #1 above: chat is self-contained — `subscribe()` calls `connect()` itself, does **not** depend on `auth`'s deferred connect-on-login, which stays scoped to `conf.<psychologistId>` only), permanent finding #3's now-VERIFIED `sendMessage`/`FormData` safety, and the new permanent finding #6 (raw message content in system notifications — a `dashboard`/`notification` concern, not `counseling`'s). Markdown checked directly: **not used anywhere** in counseling. No image/attachment support exists in the old app's chat at all — confirmed by reading `ChatEntity`, `sendMessage`'s params, and `InputChatField`'s UI; nothing to migrate there. **Four approved design corrections, not faithful ports**: bounded exponential-backoff reconnect (`packages/feature_counseling/lib/src/realtime/reconnect_backoff.dart`, old app retried immediately, unconditionally, forever); explicit unsubscribe (and, if it's the last channel, disconnect) in `ChatCubit.close()` when the session hasn't ended (old app leaked the channel+socket for the rest of the app's life otherwise); the `sent`-event filter checks `kode_voucher` matches the open chat in addition to `sender_type != 'participant'` (old app only checked the latter — a latent cross-channel bug that matters here specifically because the socket gateway is a shared singleton, unlike the old app's per-feature instance); `ChatMessageStatus` only has `pending`/`sent`/`failed` — no fabricated `delivered`/`read`, since the old app's own `MessageStatus` enum with those values was purely decorative. No UseCase — all three endpoints are thin passthroughs, same conclusion as `about`/`onboarding`/`history`. `"Konseling"` on `feature_history`'s history tile now navigates to the real chat page (was a placeholder). QA: [docs/qa/counseling.md](docs/qa/counseling.md) — sensitive-data checklist for transcripts (same tier as raw test answers), the optimistic-send/echo-filter regression test, real network + real router verification. `feature_counseling` test count: 31 (new package). |
 | `payment` | Selesai (voucher creation + manual bank-transfer write-path, **first feature with real camera + realtime + local-storage-fix all together**) — **CATATAN: Pusher wire-level tidak diuji terhadap server sungguhan di sandbox ini (sama seperti counseling), logika reconnect/backoff/clear-on-parent-change/disconnect-fix sepenuhnya diuji lewat fake gateway dan mock.** | 2026-07-11 | 2026-07-11 | Large, coupled with dashboard. Full endpoint/entity map done in the joint `payment`/`test`/`counseling`/`websocket` audit (2026-07-10), status-code vocabulary resolved and write-path re-audited 2026-07-11 (see "✓ Resolved" section above). `getVouchers`/`VoucherEntity` confirmed redundant with `feature_history`'s `list-voucher` read, not migrated here. `form_input` built first as a hard prerequisite (`packages/shared`+`design_system`, see "Shared foundations" below) — payment's demography step is its second real consumer. **Five approved corrections, not faithful ports**: (1) cascading-select fields clear their stale value when their parent changes (`clearDependentFields`, applied iteratively) — the old app never did, which is both a write-path data-integrity bug and a proven `DropdownButtonFormField` `AssertionError` crash; (2) `StatusVoucher` enum splits the old app's single `PaymentStatus.review` into `underReview`/`paid`; (3) socket `disconnectSocket()` always unsubscribes + clears, no "skip if review" exception, unlike the old app's asymmetry that left a channel alive in the shared gateway; (4) `PaymentLocalDataSource` uses a prefixed secure-storage key (`com.akujamin.mobile.payment_psychologist_id`), fixing the same ADR-011-class vulnerability as `SecureTokenStorage`'s own fix; (5) the captured/picked proof-of-payment image is deleted after a successful upload (best-effort), a second independent instance of permanent finding #4's class of gap, this time for a financial document. iOS/Android camera permission gap (previously flagged only under `test`'s row, zero permission strings in the old app on either platform) fixed as part of this slice — `apps/mobile`'s `Info.plist`/`AndroidManifest.xml`. No UseCase — all 9 old usecases were pure passthroughs, same conclusion as `about`/`onboarding`/`history`/`counseling`. `feature_payment` test count: 24 (new package). Full workspace: 285/285 passing. QA: [docs/qa/payment.md](docs/qa/payment.md) — sensitive-data checklist with a dedicated financial-data section (proof-of-payment photo), real DI/router wiring verification. |
-| `test` | belum (partial: read-only certificate view resolved) | — | — | Largest, camera+face+websocket+screenshot — migrate last. **`certificate_page.dart` (read-only PDF viewer) migrated 2026-07-11** as part of the "Riwayat + sertifikat" slice, landed in `packages/feature_history` rather than a `feature_test` package — see [docs/qa/history.md](docs/qa/history.md). Deliberately the one piece of `test` extractable without inheriting camera/websocket/write-path risk; the actual test-taking flow (questions/timer/face-proctoring) is untouched. **Blocker check before starting the rest:** (1) if its content uses markdown formatting, needs `design_system`'s markdown widget first — see `about`'s row, not yet built; (2) permanent finding #3 above — never ad-hoc-log raw test answers; (3) permanent finding #4 above — captured face images need explicit cleanup added, not ported as-is; (4) no `NSCameraUsageDescription`/Android camera permission found anywhere in the old app (native inventory, 2026-07-10) — must be added deliberately, there's no working old-app iOS behavior to match |
+| `test` | belum (partial: read-only certificate view resolved; camera/proctoring prerequisite built and tested 2026-07-12) | — | — | Largest, camera+face+websocket+screenshot — migrate last. **`certificate_page.dart` (read-only PDF viewer) migrated 2026-07-11** as part of the "Riwayat + sertifikat" slice, landed in `packages/feature_history` — see [docs/qa/history.md](docs/qa/history.md). **Markdown blocker resolved 2026-07-12**: `AppMarkdownText` built (see "Shared foundations" below), confirmed by reading `test_info_container.dart` that intro/instruction content genuinely uses markdown (`CustomMarkdownWidget`), not just question text (plain, unaffected). **Face-match endpoint conflict resolved 2026-07-12**: `test`'s own `MatchFaceUsecase`→`TestRepository.matchFace()` chain is dead code — registered in DI, never called anywhere in the presentation layer (exhaustive grep). Only `camera`'s live periodic in-stream implementation is real; migrated as `feature_test`'s `FaceMatchDatasource`, `test`'s own chain not ported. **Camera prerequisite audited and built 2026-07-12** (packages/shared's `CameraGateway` + `packages/feature_test`'s proctoring slice — see "Shared foundations" below and permanent finding #7). **Still open before the rest of `test` starts**: full flow map (TestEntity→SectionEntity→QuestionEntity→AnswerEntity structure, `saveTestAnswer` orchestration decision, screenshot-block lifecycle — a real, confirmed gap found already, see permanent finding #8) and the sensitive-data checklist (raw test answers, proctoring face images, face-match confidence scores) — Langkah 3-4 of the write-path audit, in progress. |
 
 ## Infrastructure/service features (become shared/core services, not feature packages)
 
@@ -383,6 +422,7 @@ self-contained until a second real consumer forces the generalization
 |---|---|---|---|
 | `form_input` (dynamic form schema, cascading options, clear-on-parent-change) | `auth`'s register flow + `payment`'s demography step (old app) | `packages/shared` (domain/data) + `packages/design_system` (`DynamicFormField`) | 2026-07-11 |
 | `AppMarkdownText` (markdown rendering) | `about`'s FAQ text + `test`'s intro/instruction content (old app's `CustomMarkdownWidget`, confirmed via `test_info_container.dart`) | `packages/design_system` (`markdown_widget`-backed, not `flutter_markdown` — verified discontinued before choosing) | 2026-07-12 |
+| `CameraGateway` (initialize/captureImage/dispose/controller only — no streaming, no face detection) | `auth`'s selfie capture + `test`'s proctoring feed (old app's `CameraDatasourceImpl`) | `packages/shared` — deliberately narrow scope; the ML Kit detection wrapper and the proctoring state machine stayed in `packages/feature_test` (self-contained, zero confirmed second consumer for either — same reasoning as `websocket`) | 2026-07-12 |
 
 ---
 

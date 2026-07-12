@@ -26,3 +26,22 @@ final class ValidationFailure extends Failure {
 final class UnauthorizedFailure extends Failure {
   const UnauthorizedFailure() : super('Session expired');
 }
+
+/// Distinguishes *why* a camera operation failed — added so a caller can
+/// react differently to each (e.g. `test`'s proctoring treats every
+/// reason as a hard block with its own message, never lumping "no front
+/// camera" in with "face not currently in frame"). Deliberately does not
+/// distinguish device-permission-denied from other native
+/// `CameraException`s beyond that one case — no evidence yet that finer
+/// granularity is needed by any real consumer.
+enum CameraFailureReason {
+  noCameraOnDevice,
+  requestedLensNotFound,
+  permissionDenied,
+  captureFailed,
+}
+
+final class CameraFailure extends Failure {
+  final CameraFailureReason reason;
+  const CameraFailure(this.reason, super.message);
+}

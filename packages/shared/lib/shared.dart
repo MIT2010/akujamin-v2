@@ -4,6 +4,10 @@
 library;
 
 export 'src/analytics/analytics_service.dart';
+export 'src/camera/data/datasources/camera_datasource.dart';
+export 'src/camera/data/repositories/camera_gateway_impl.dart';
+export 'src/camera/domain/entities/camera_config.dart';
+export 'src/camera/domain/repositories/camera_gateway.dart';
 export 'src/crash/crash_reporter.dart';
 export 'src/di/app_environment.dart';
 export 'src/di/injection.dart';
