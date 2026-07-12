@@ -7,6 +7,7 @@ import 'package:feature_home/feature_home.dart';
 import 'package:feature_onboarding/feature_onboarding.dart';
 import 'package:feature_payment/feature_payment.dart';
 import 'package:feature_profile/feature_profile.dart';
+import 'package:feature_test/feature_test.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:shared/shared.dart';
@@ -49,4 +50,9 @@ final _routes = <RouteBase>[
   ),
   GoRoute(path: '/chat/:code', builder: (context, state) => const ChatPage()),
   GoRoute(path: '/payment', builder: (context, state) => const PaymentPage()),
+  GoRoute(
+    path: '/test/:voucher',
+    builder: (context, state) => const TestPage(),
+  ),
+  GoRoute(path: '/result', builder: (context, state) => const ResultPage()),
 ];

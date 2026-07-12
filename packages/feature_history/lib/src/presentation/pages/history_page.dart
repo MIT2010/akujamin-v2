@@ -184,6 +184,14 @@ class _HistoryTile extends StatelessWidget {
                       );
                       return;
                     }
+                    if (_isTest) {
+                      // Real navigation now that `test` is migrated — same
+                      // route-string pattern as counseling/certificate
+                      // above, no direct package dependency on
+                      // feature_test.
+                      context.push('/test/${item.code}');
+                      return;
+                    }
                     AppDialog.info(
                       context,
                       title: 'Belum tersedia',

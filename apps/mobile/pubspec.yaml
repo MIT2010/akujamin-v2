@@ -30,6 +30,8 @@ dependencies:
     path: ../../packages/feature_payment
   feature_profile:
     path: ../../packages/feature_profile
+  feature_test:
+    path: ../../packages/feature_test
   shared:
     path: ../../packages/shared
   flutter:

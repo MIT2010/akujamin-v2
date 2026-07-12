@@ -43,6 +43,12 @@ void main() {
               ),
             ),
           ),
+          GoRoute(
+            path: '/test/:voucher',
+            builder: (context, state) => Scaffold(
+              body: Text('test-page:${state.pathParameters['voucher']}'),
+            ),
+          ),
         ],
       ),
     );
@@ -139,7 +145,8 @@ void main() {
   });
 
   testWidgets(
-    '"Lanjutkan Tes" for an in-progress test shows the placeholder dialog',
+    '"Lanjutkan Tes" navigates to the real test page now that test is '
+    'migrated — this was a placeholder dialog before',
     (tester) async {
       final item = passedItem.copyWith(status: 'Sedang Tes');
       when(() => historyCubit.state).thenReturn(HistoryState.loaded([item]));
@@ -148,10 +155,7 @@ void main() {
       await tester.tap(find.text('Lanjutkan Tes'));
       await tester.pumpAndSettle();
 
-      expect(
-        find.text('Fitur ini belum tersedia. Coba lagi nanti.'),
-        findsOneWidget,
-      );
+      expect(find.text('test-page:ABC123'), findsOneWidget);
     },
   );
 
