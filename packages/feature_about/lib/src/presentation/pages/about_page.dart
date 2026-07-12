@@ -31,11 +31,12 @@ class AboutPage extends StatelessWidget {
 /// migration should fix, not carry over (§0's golden rule: migrate
 /// behavior, not structure).
 ///
-/// Content renders as plain [Text], not the old app's `CustomMarkdownWidget`
-/// — a real markdown renderer is a `design_system` addition AUDIT.md §3
-/// already flagged as future work. Deliberately deferred here so this pilot
-/// stays scoped to proving the data/DI/state pattern; tracked in
-/// MIGRATION_LOG.md, not silently dropped.
+/// Content renders via [AppMarkdownText] — closes the gap tracked since
+/// this pilot first shipped (AUDIT.md §3 flagged real markdown rendering
+/// as future `design_system` work; deliberately deferred then so the
+/// pilot stayed scoped to proving the data/DI/state pattern). Built as
+/// part of migrating `test`, whose intro/instruction content also uses
+/// markdown — see MIGRATION_LOG.md.
 class AboutView extends StatelessWidget {
   const AboutView({super.key});
 
@@ -98,7 +99,7 @@ class _AboutTile extends StatelessWidget {
           AppSpacing.md,
           AppSpacing.md,
         ),
-        children: [Text(item.text)],
+        children: [AppMarkdownText(data: item.text)],
       ),
     );
   }

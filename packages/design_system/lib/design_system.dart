@@ -14,3 +14,4 @@ export 'src/widgets/cards/app_card.dart';
 export 'src/widgets/dialogs/app_dialog.dart';
 export 'src/widgets/inputs/app_text_field.dart';
 export 'src/widgets/inputs/dynamic_form_field.dart';
+export 'src/widgets/text/app_markdown_text.dart';
