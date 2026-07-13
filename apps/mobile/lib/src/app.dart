@@ -19,7 +19,10 @@ class App extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final appRouter = getIt<AppRouter>()..standaloneRoutes = _routes;
+    final appRouter = getIt<AppRouter>()
+      ..standaloneRoutes = _routes
+      ..shellRoutes = _shellRoutes
+      ..shellDestinations = _shellDestinations;
 
     return MaterialApp.router(
       title: 'Flutter Starter Kit',
@@ -30,6 +33,11 @@ class App extends StatelessWidget {
   }
 }
 
+/// Routes outside the persistent bottom nav — either reached before a
+/// session exists (`/login`, `/register`), or pushed full-screen on top of
+/// the shell from one of its tabs (e.g. `/certificate` from `/history`,
+/// `/chat/:code` from `/counseling`) exactly as the old app's equivalent
+/// screens were never part of `CustomBottomNavBar` either.
 final _routes = <RouteBase>[
   GoRoute(path: '/login', builder: (context, state) => const LoginPage()),
   // A real GoRoute, unlike OtpLoginPage's Navigator.push workaround —
@@ -37,14 +45,11 @@ final _routes = <RouteBase>[
   // does for '/login', so an authenticated user landing here just falls
   // through the normal `loggedIn` branch and renders normally.
   GoRoute(path: '/register', builder: (context, state) => const RegisterPage()),
-  GoRoute(path: '/home', builder: (context, state) => const HomePage()),
-  GoRoute(path: '/profile', builder: (context, state) => const ProfilePage()),
   GoRoute(path: '/about', builder: (context, state) => const AboutPage()),
   GoRoute(
     path: '/onboarding',
     builder: (context, state) => const OnboardingPage(),
   ),
-  GoRoute(path: '/history', builder: (context, state) => const HistoryPage()),
   GoRoute(
     path: '/certificate',
     builder: (context, state) => const CertificatePage(),
@@ -60,4 +65,25 @@ final _routes = <RouteBase>[
     builder: (context, state) => const TestPage(),
   ),
   GoRoute(path: '/result', builder: (context, state) => const ResultPage()),
+];
+
+/// The three tabs `AppShell`'s persistent bottom nav wraps (TAHAP 3,
+/// MIGRATION_LOG.md's dashboard-shell finding) — matches the old app's
+/// `CustomBottomNavBar` (Beranda/Riwayat/Akun) exactly, using the
+/// `AppRouter.shellRoutes`/`AppShell` infrastructure `shared` already
+/// shipped but nothing wired up until now.
+final _shellRoutes = <RouteBase>[
+  GoRoute(path: '/home', builder: (context, state) => const HomePage()),
+  GoRoute(path: '/history', builder: (context, state) => const HistoryPage()),
+  GoRoute(path: '/profile', builder: (context, state) => const ProfilePage()),
+];
+
+final _shellDestinations = <AppShellDestination>[
+  AppShellDestination(path: '/home', icon: Icons.home, label: 'Beranda'),
+  AppShellDestination(
+    path: '/history',
+    icon: Icons.history_rounded,
+    label: 'Riwayat',
+  ),
+  AppShellDestination(path: '/profile', icon: Icons.person, label: 'Akun'),
 ];

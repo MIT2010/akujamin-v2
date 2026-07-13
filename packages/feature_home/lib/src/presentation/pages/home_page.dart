@@ -25,6 +25,12 @@ class HomePage extends StatelessWidget {
 /// widget tests can drive it directly with a fake `HomeCubit` via
 /// `BlocProvider.value`, without going through `get_it` — same pattern as
 /// `authentication`'s `LoginView`.
+/// Riwayat and Akun used to have their own AppBar icons here, pushing
+/// `/history`/`/profile` directly. Removed once `apps/mobile` wired
+/// `AppRouter.shellRoutes`/`AppShell` (TAHAP 3, MIGRATION_LOG.md's
+/// dashboard-shell finding) — those two destinations are reachable from the
+/// persistent bottom-nav on every shell screen now, so the AppBar icons
+/// were a live duplicate, not a fallback.
 class HomeView extends StatelessWidget {
   const HomeView({super.key});
 
@@ -47,16 +53,9 @@ class HomeView extends StatelessWidget {
           IconButton(
             icon: const Icon(Icons.help_outline),
             tooltip: 'FAQ',
-            // Same route-string navigation as the profile button below —
-            // features never depend on each other directly (§5).
-            onPressed: () => context.push('/about'),
-          ),
-          IconButton(
-            icon: const Icon(Icons.history),
-            tooltip: 'Riwayat',
             // Same route-string navigation as the other buttons here —
             // features never depend on each other directly (§5).
-            onPressed: () => context.push('/history'),
+            onPressed: () => context.push('/about'),
           ),
           IconButton(
             icon: const Icon(Icons.chat_bubble_outline),
@@ -94,16 +93,6 @@ class HomeView extends StatelessWidget {
 
               if (context.mounted) context.push('/payment');
             },
-          ),
-          IconButton(
-            icon: const Icon(Icons.person),
-            tooltip: 'Akun',
-            // Navigation by route string, not by importing feature_profile —
-            // features never depend on each other directly (§5); the route
-            // table in apps/mobile is the only place that knows both.
-            // `push`, not `go`: keeps /home on the stack so the profile
-            // page gets a back button for free.
-            onPressed: () => context.push('/profile'),
           ),
           IconButton(
             icon: const Icon(Icons.logout),
