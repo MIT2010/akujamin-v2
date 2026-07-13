@@ -12,6 +12,8 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:shared/shared.dart';
 
+import 'dashboard_notification_listener.dart';
+
 /// The composition root's widget (§13, §17): wires `AppRouter` (from
 /// `shared`) into `MaterialApp.router`, themed from `design_system`.
 class App extends StatelessWidget {
@@ -24,11 +26,17 @@ class App extends StatelessWidget {
       ..shellRoutes = _shellRoutes
       ..shellDestinations = _shellDestinations;
 
-    return MaterialApp.router(
-      title: 'Flutter Starter Kit',
-      routerConfig: appRouter.router,
-      theme: AppTheme.light(),
-      darkTheme: AppTheme.dark(),
+    // Wraps MaterialApp.router (not the other way around) so it mounts
+    // once for the app's whole lifetime, not just while a shell tab is
+    // visible — see DashboardNotificationListener's doc comment for why
+    // that distinction matters.
+    return DashboardNotificationListener(
+      child: MaterialApp.router(
+        title: 'Flutter Starter Kit',
+        routerConfig: appRouter.router,
+        theme: AppTheme.light(),
+        darkTheme: AppTheme.dark(),
+      ),
     );
   }
 }
