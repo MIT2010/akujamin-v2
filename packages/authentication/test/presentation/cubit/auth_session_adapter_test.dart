@@ -6,13 +6,18 @@ import 'package:shared/shared.dart';
 
 class _MockAuthRepository extends Mock implements AuthRepository {}
 
+class _MockNotificationGateway extends Mock implements NotificationGateway {}
+
 void main() {
   late _MockAuthRepository repository;
+  late _MockNotificationGateway notificationGateway;
 
   const user = User(id: '1', email: 'a@example.com', role: 'admin');
 
   setUp(() {
     repository = _MockAuthRepository();
+    notificationGateway = _MockNotificationGateway();
+    when(() => notificationGateway.cancelAll()).thenAnswer((_) async {});
   });
 
   test('status reflects AuthCubit.authenticated as isAuthenticated with the '
@@ -21,7 +26,7 @@ void main() {
     when(
       () => repository.getCachedSessionProfile(),
     ).thenAnswer((_) async => null);
-    final authCubit = AuthCubit(repository);
+    final authCubit = AuthCubit(repository, notificationGateway);
     await pumpEventQueue();
 
     final adapter = AuthSessionAdapter(authCubit);
@@ -34,7 +39,7 @@ void main() {
     'status reflects AuthCubit.unauthenticated as AuthSessionStatus.unauthenticated',
     () async {
       when(() => repository.getCachedUser()).thenAnswer((_) async => null);
-      final authCubit = AuthCubit(repository);
+      final authCubit = AuthCubit(repository, notificationGateway);
       await pumpEventQueue();
 
       final adapter = AuthSessionAdapter(authCubit);
@@ -47,7 +52,7 @@ void main() {
   test('statusStream follows AuthCubit through a login/logout cycle', () async {
     when(() => repository.getCachedUser()).thenAnswer((_) async => null);
     when(() => repository.logout()).thenAnswer((_) async => const Ok(null));
-    final authCubit = AuthCubit(repository);
+    final authCubit = AuthCubit(repository, notificationGateway);
     await pumpEventQueue();
     final adapter = AuthSessionAdapter(authCubit);
 

@@ -45,3 +45,17 @@ final class CameraFailure extends Failure {
   final CameraFailureReason reason;
   const CameraFailure(this.reason, super.message);
 }
+
+/// Mirrors [CameraFailureReason]'s reasoning: the old app's
+/// `NotificationLocalServiceImpl.show()` requested permission but never
+/// checked the result before calling `plugin.show()` regardless — a
+/// silent-substitution bug in the same class as the camera lens fallback,
+/// just for notifications instead of camera lenses. `permissionDenied`
+/// lets `NotificationGatewayImpl` return an honest `Err` instead of
+/// calling the plugin anyway.
+enum NotificationFailureReason { permissionDenied, showFailed }
+
+final class NotificationFailure extends Failure {
+  final NotificationFailureReason reason;
+  const NotificationFailure(this.reason, super.message);
+}

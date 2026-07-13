@@ -1,5 +1,6 @@
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:injectable/injectable.dart';
+import 'package:shared/shared.dart';
 
 import '../../domain/entities/session_profile.dart';
 import '../../domain/entities/user.dart';
@@ -11,11 +12,20 @@ import 'auth_state.dart';
 /// `AppRouter`'s redirect logic. `@lazySingleton` (not `@injectable`) so
 /// [LoginCubit] and the router's `AuthSession` adapter share the exact same
 /// instance/stream — logging in has to be visible to both.
+///
+/// Owns [NotificationGateway] directly (not routed through
+/// [AuthRepository]) for the same reason `TestCubit` owns `ScreenshotGateway`
+/// directly rather than through `TestRepository`: [logout] is the one
+/// authoritative call site every UI logout button already goes through, so
+/// [NotificationGateway.cancelAll] belongs here, not scattered across
+/// individual logout buttons.
 @lazySingleton
 class AuthCubit extends Cubit<AuthState> {
   final AuthRepository _repository;
+  final NotificationGateway _notificationGateway;
 
-  AuthCubit(this._repository) : super(const AuthState.initial()) {
+  AuthCubit(this._repository, this._notificationGateway)
+    : super(const AuthState.initial()) {
     _restoreCachedSession();
   }
 
@@ -40,6 +50,7 @@ class AuthCubit extends Cubit<AuthState> {
 
   Future<void> logout() async {
     await _repository.logout();
+    await _notificationGateway.cancelAll();
     emit(const AuthState.unauthenticated());
   }
 }
