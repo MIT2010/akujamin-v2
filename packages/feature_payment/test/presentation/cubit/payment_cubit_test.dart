@@ -16,7 +16,7 @@ class _MockFormInputRepository extends Mock implements FormInputRepository {}
 /// `feature_counseling`'s `_FakeSocketGateway`: the disconnect-always
 /// regression test below needs real subscribe/unsubscribe call history
 /// across multiple cubit lifecycles.
-class _FakeSocketGateway implements PaymentSocketGateway {
+class _FakeSocketGateway implements SocketGateway {
   final _controller = StreamController<SocketEvent>.broadcast();
   final List<String> subscribedChannels = [];
   final List<String> unsubscribedChannels = [];

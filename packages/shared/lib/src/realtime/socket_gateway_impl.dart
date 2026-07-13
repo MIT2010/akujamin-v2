@@ -4,19 +4,21 @@ import 'package:core/core.dart';
 import 'package:dart_pusher_channels/dart_pusher_channels.dart';
 import 'package:injectable/injectable.dart';
 
-import 'payment_socket_gateway.dart';
 import 'reconnect_backoff.dart';
 import 'socket_event.dart';
+import 'socket_gateway.dart';
 
-/// Self-contained websocket connection layer, scoped to `feature_payment`
-/// — deliberately its own copy, not a shared dependency on
-/// `feature_counseling`'s equivalent (see [ReconnectBackoff]'s doc
-/// comment). Same shape as `CounselingSocketGatewayImpl`: connect-on-
-/// subscribe, auto-resubscribe on reconnect, bounded exponential backoff
-/// instead of the old app's immediate-unconditional-forever retry.
-@LazySingleton(as: PaymentSocketGateway)
-class PaymentSocketGatewayImpl implements PaymentSocketGateway {
-  PaymentSocketGatewayImpl(this._env);
+/// One shared websocket connection for the whole app (§7 — see
+/// [SocketGateway]'s doc comment for why this must be a single instance,
+/// not one per feature). Mirrors the old app's `WebsocketDatasourceImpl`/
+/// `ChannelManager` shape (connect-on-subscribe, auto-resubscribe on
+/// reconnect via `subscribeIfNotUnsubscribed()`) with one deliberate
+/// correction: the old app's `connectionErrorHandler` called `refresh()`
+/// immediately and unconditionally on every error, forever. This uses
+/// [ReconnectBackoff] instead — see that class's doc comment.
+@LazySingleton(as: SocketGateway)
+class SocketGatewayImpl implements SocketGateway {
+  SocketGatewayImpl(this._env);
 
   final Env _env;
 
@@ -74,7 +76,7 @@ class PaymentSocketGatewayImpl implements PaymentSocketGateway {
 
   @override
   Future<void> subscribe(String channelName) async {
-    await _connect();
+    await _connect(); // ensure connection, same as the old app
 
     if (_channels.containsKey(channelName)) return;
 
@@ -94,6 +96,15 @@ class PaymentSocketGatewayImpl implements PaymentSocketGateway {
     channel.subscribe();
   }
 
+  /// Unsubscribing the *last* channel tears the connection down entirely
+  /// — this gateway is a single `@LazySingleton` shared by every feature
+  /// that ever exists (`ChatCubit`, `PaymentCubit`, the dashboard shell),
+  /// so any one of them calling `unsubscribe()` must not assume it's safe
+  /// to also force a full `disconnect()` itself (that would kill a
+  /// connection a *different*, still-live consumer needs). Tying teardown
+  /// to "no channels left" instead of "one specific consumer is done"
+  /// makes this correct regardless of how many features are using the
+  /// connection at once.
   @override
   Future<void> unsubscribe(String channelName) async {
     final channel = _channels.remove(channelName);

@@ -5,6 +5,7 @@ import 'package:core/core.dart';
 import 'package:feature_counseling/feature_counseling.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
+import 'package:shared/shared.dart';
 
 class _MockChatRepository extends Mock implements ChatRepository {}
 
@@ -12,7 +13,7 @@ class _MockChatRepository extends Mock implements ChatRepository {}
 /// push real events onto a real stream and assert on real subscribe/
 /// unsubscribe call history, which a mocktail mock's argument matchers
 /// make awkward for a broadcast stream used across many test cases.
-class _FakeSocketGateway implements CounselingSocketGateway {
+class _FakeSocketGateway implements SocketGateway {
   final _controller = StreamController<SocketEvent>.broadcast();
   final List<String> subscribedChannels = [];
   final List<String> unsubscribedChannels = [];

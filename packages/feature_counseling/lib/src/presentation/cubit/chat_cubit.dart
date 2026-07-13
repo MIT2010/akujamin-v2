@@ -3,25 +3,31 @@ import 'dart:async';
 import 'package:core/core.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:injectable/injectable.dart';
+import 'package:shared/shared.dart';
 
 import '../../data/models/chat_message_model.dart';
 import '../../domain/entities/chat_message.dart';
 import '../../domain/repositories/chat_repository.dart';
-import '../../realtime/counseling_socket_gateway.dart';
-import '../../realtime/socket_event.dart';
 import 'chat_state.dart';
 
 /// No UseCase (§21/ADR-004) — `getMessages`/`sendMessage` are thin
 /// pass-throughs to [ChatRepository]; the realtime wiring below is
 /// orchestration this cubit genuinely owns, not something a UseCase would
 /// meaningfully extract.
+///
+/// [SocketGateway] is `shared`'s app-wide single connection (MIGRATION_LOG.md
+/// permanent finding #1's resolution) — not a `feature_counseling`-private
+/// one anymore. `unsubscribe()`'s "last channel tears the connection down"
+/// behavior is still correct here: it's now scoped to *no channels left
+/// across the whole app*, not just this feature's own, which is exactly
+/// what a shared connection needs.
 @injectable
 class ChatCubit extends Cubit<ChatState> {
   ChatCubit(this._chatRepository, this._socketGateway)
     : super(const ChatState.initial());
 
   final ChatRepository _chatRepository;
-  final CounselingSocketGateway _socketGateway;
+  final SocketGateway _socketGateway;
 
   StreamSubscription<SocketEvent>? _eventSubscription;
   String? _code;
@@ -62,8 +68,9 @@ class ChatCubit extends Cubit<ChatState> {
   /// never that the event's `kode_voucher` actually matches the chat
   /// that's open — a latent cross-channel bug (harmless while only one
   /// chat is ever open, but this gateway is a shared singleton, see
-  /// `CounselingSocketGatewayImpl.unsubscribe`'s doc comment, so the risk
-  /// is real here in a way it wasn't there). New code doesn't inherit it.
+  /// `SocketGatewayImpl.unsubscribe`'s doc comment in `shared` (now
+  /// app-wide, not just this feature's), so the risk is real here in a
+  /// way it wasn't there). New code doesn't inherit it.
   void _handleSent(String code, SocketEvent event) {
     if (event.payload['sender_type'] == 'participant') return;
     if (event.payload['kode_voucher'] != code) return;

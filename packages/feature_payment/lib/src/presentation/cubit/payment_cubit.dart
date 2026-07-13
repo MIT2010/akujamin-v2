@@ -9,8 +9,6 @@ import 'package:shared/shared.dart';
 
 import '../../domain/entities/status_voucher.dart';
 import '../../domain/repositories/payment_repository.dart';
-import '../../realtime/payment_socket_gateway.dart';
-import '../../realtime/socket_event.dart';
 import 'payment_state.dart';
 
 /// No UseCase (§21/ADR-004) — every `PaymentRepository` method is a thin
@@ -18,6 +16,10 @@ import 'payment_state.dart';
 /// real orchestration during the write-path audit), same conclusion as
 /// `about`/`onboarding`/`history`/`counseling`. The realtime + countdown
 /// wiring below is orchestration this cubit genuinely owns.
+///
+/// [SocketGateway] is `shared`'s app-wide single connection (MIGRATION_LOG.md
+/// permanent finding #1's resolution) — not a `feature_payment`-private one
+/// anymore, shared with `counseling` and the `dashboard` shell.
 @injectable
 class PaymentCubit extends Cubit<PaymentState> {
   PaymentCubit(this._repository, this._formInputRepository, this._socketGateway)
@@ -25,7 +27,7 @@ class PaymentCubit extends Cubit<PaymentState> {
 
   final PaymentRepository _repository;
   final FormInputRepository _formInputRepository;
-  final PaymentSocketGateway _socketGateway;
+  final SocketGateway _socketGateway;
   final ImagePicker _picker = ImagePicker();
 
   StreamSubscription<SocketEvent>? _eventSubscription;
