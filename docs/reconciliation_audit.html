@@ -72,6 +72,9 @@ h2{font-family:var(--serif);font-weight:500;font-size:19px;margin:0 0 0.15rem}
 .finding .path + .path{margin-left:4px}
 .finding-body{font-size:14px;color:var(--ink)}
 .finding-body b{font-weight:500}
+.finding-body .resolved{margin:0.5rem 0 0;padding:0.5rem 0.7rem;border-left:3px solid var(--m);background:var(--m-bg);border-radius:0 6px 6px 0;font-size:13.5px}
+.finding-body .resolved b{color:var(--m-ink)}
+.finding-body .resolved a{color:inherit;text-decoration:underline}
 
 .toolbar{display:flex;gap:0.6rem;align-items:center;flex-wrap:wrap;margin:1.5rem 0 0.85rem}
 .toolbar input[type=search]{flex:1;min-width:200px;height:36px;border:1px solid var(--border-strong);border-radius:8px;background:var(--bg-panel);color:var(--ink);padding:0 12px;font-size:14px;font-family:var(--sans)}
@@ -122,48 +125,64 @@ footer.foot{margin-top:2.5rem;padding-top:1rem;border-top:1px solid var(--border
 <div class="stats" id="stats"></div>
 
 <section class="panel" id="findings-panel">
-  <h2>Belum terklasifikasi — 11 file</h2>
-  <p class="section-note">File yang tidak masuk kategori manapun setelah audit. Ini bukan file yang dilewatkan pemeriksaan — setiap satu sudah diverifikasi langsung (dibaca, di-grep) dan secara jujur tidak cocok dengan migrated/consolidated/dead/out-of-scope.</p>
+  <h2>11 file, semula tak terklasifikasi — semua sudah didisposisikan (2026-07-14)</h2>
+  <p class="section-note">Temuan asli LANGKAH 1 di bawah ini dibiarkan apa adanya (bukti audit, bukan ditulis ulang) — setiap satu diberi anotasi <b>RESOLVED</b> menjelaskan disposisi akhirnya. Rincian penuh + sumber: <a href="../GAPS.md">GAPS.md</a>, <code>MIGRATION_LOG.md</code>'s <code>dashboard</code>/<code>splash</code>/<code>auth</code> rows, dan <code>docs/qa/home.md</code>.</p>
   <div class="findings-list">
 
     <div class="finding">
       <span class="path">dashboard/presentation/pages/home_page.dart</span>
-      <div class="finding-body"><b>Temuan paling penting di seluruh audit.</b> Navigasinya memang berpindah (ikon AppBar di <code>feature_home</code>'s HomeView mewarisi logika onTap <code>home_menu_config.dart</code>, termasuk gate <code>isRegistered</code>). Tapi <b>konten halaman itu sendiri tidak pernah dipindahkan</b> — teaser profil, banner "lengkapi profil", dan grid menu about di app lama tidak punya padanan di <code>feature_home</code>, yang isinya adalah konsep "home feed" generik (list HomeItem dari cache Hive, endpoint <code>/home/feed</code>) yang <b>sama sekali tidak ada di app lama</b> — digrep menyeluruh, nol kecocokan. Bukan rename, bukan simplifikasi yang tercatat: konten layar home app lama sekarang tidak dirender di mana pun.</div>
+      <div class="finding-body"><b>Temuan paling penting di seluruh audit.</b> Navigasinya memang berpindah (ikon AppBar di <code>feature_home</code>'s HomeView mewarisi logika onTap <code>home_menu_config.dart</code>, termasuk gate <code>isRegistered</code>). Tapi <b>konten halaman itu sendiri tidak pernah dipindahkan</b> — teaser profil, banner "lengkapi profil", dan grid menu about di app lama tidak punya padanan di <code>feature_home</code>, yang isinya adalah konsep "home feed" generik (list HomeItem dari cache Hive, endpoint <code>/home/feed</code>) yang <b>sama sekali tidak ada di app lama</b> — digrep menyeluruh, nol kecocokan. Bukan rename, bukan simplifikasi yang tercatat: konten layar home app lama sekarang tidak dirender di mana pun.
+      <p class="resolved">✅ <b>RESOLVED 2026-07-14 — MIGRATED.</b> Seluruh stack HomeCubit/HomeItem/Hive dihapus, diganti teaser profil + banner "lengkapi profil" sungguhan, baca langsung dari <code>AuthCubit.state</code>. Dua bug produksi nyata ditemukan &amp; diperbaiki sekaligus: <code>BlocProvider&lt;AuthCubit&gt;</code> tidak pernah disambungkan (tombol Payment akan crash), dan flash form-login untuk user yang sudah login (session-restore gate). Lihat <code>docs/qa/home.md</code>.</p>
+      </div>
     </div>
 
     <div class="finding">
       <span class="path">splash/presentation/pages/splash_page.dart</span><span class="path">splash/presentation/routes/splash_routes.dart</span><span class="path">splash/splash.dart</span>
-      <div class="finding-body">Ketiganya nyata dan aktif dipakai di app lama (target redirect asli untuk <code>AuthStatus.initial</code>/<code>checkingSession</code>). Tidak ada padanan di mana pun di akujamin-v2 (AppRouter._redirect dibaca penuh — tidak ada gate bootstrap/loading). MIGRATION_LOG.md mencatat status "belum" dengan catatan "kemungkinan masuk ke app bootstrap" — itu rencana, bukan keputusan tercatat untuk mengecualikan.</div>
+      <div class="finding-body">Ketiganya nyata dan aktif dipakai di app lama (target redirect asli untuk <code>AuthStatus.initial</code>/<code>checkingSession</code>). Tidak ada padanan di mana pun di akujamin-v2 (AppRouter._redirect dibaca penuh — tidak ada gate bootstrap/loading). MIGRATION_LOG.md mencatat status "belum" dengan catatan "kemungkinan masuk ke app bootstrap" — itu rencana, bukan keputusan tercatat untuk mengecualikan.
+      <p class="resolved">✅ <b>RESOLVED 2026-07-14 — sebagian MIGRATED, sebagian OUT OF SCOPE.</b> Gate session-restore-nya dibangun sungguhan (bukan diasumsikan cepat) — diukur langsung, terbukti ada flash form-login untuk user yang sudah login, diperbaiki lewat <code>BlocBuilder</code> loading-gate di <code>apps/mobile/lib/src/app.dart</code>. Layar splash penuh (carousel/branding) sendiri tetap tidak dibangun — dicatat sebagai gap diterima eksplisit, lihat <a href="../GAPS.md">GAPS.md</a>.</p>
+      </div>
     </div>
 
     <div class="finding">
       <span class="path">core/shared/pages/coming_soon_page.dart</span>
-      <div class="finding-body">Fallback nyata di app lama: dipanggil <code>home_menu_config.dart</code> saat konten "about" yang diminta (FAQ/privasi/tentang) tidak dikembalikan server. Tidak ada <code>ComingSoonPage</code> atau padanan di akujamin-v2; tombol setara sekarang push langsung ke <code>/about</code> dst tanpa fallback null-content. Tidak tercatat sebagai pengecualian sengaja di MIGRATION_LOG.md atau docs/qa manapun.</div>
+      <div class="finding-body">Fallback nyata di app lama: dipanggil <code>home_menu_config.dart</code> saat konten "about" yang diminta (FAQ/privasi/tentang) tidak dikembalikan server. Tidak ada <code>ComingSoonPage</code> atau padanan di akujamin-v2; tombol setara sekarang push langsung ke <code>/about</code> dst tanpa fallback null-content. Tidak tercatat sebagai pengecualian sengaja di MIGRATION_LOG.md atau docs/qa manapun.
+      <p class="resolved">✅ <b>RESOLVED 2026-07-14 — OUT OF SCOPE (diterima).</b> Dicatat sebagai gap diterima di <a href="../GAPS.md">GAPS.md</a> — kode tidak diubah.</p>
+      </div>
     </div>
 
     <div class="finding">
       <span class="path">core/shared/widgets/dashed_border.dart</span>
-      <div class="finding-body">Dipakai nyata di app lama (upload bukti pembayaran, capture KTP/selfie). Layar setara di akujamin-v2 pakai <code>Border.all(...)</code> solid biasa. Tidak ada keputusan "hilangkan dashed styling" tercatat di MIGRATION_LOG.md maupun docs/qa/payment.md atau register.md — tampak seperti simplifikasi visual diam-diam.</div>
+      <div class="finding-body">Dipakai nyata di app lama (upload bukti pembayaran, capture KTP/selfie). Layar setara di akujamin-v2 pakai <code>Border.all(...)</code> solid biasa. Tidak ada keputusan "hilangkan dashed styling" tercatat di MIGRATION_LOG.md maupun docs/qa/payment.md atau register.md — tampak seperti simplifikasi visual diam-diam.
+      <p class="resolved">✅ <b>RESOLVED 2026-07-14 — OUT OF SCOPE (diterima).</b> Dicatat sebagai gap diterima di <a href="../GAPS.md">GAPS.md</a> — kode tidak diubah.</p>
+      </div>
     </div>
 
     <div class="finding">
       <span class="path">core/shared/widgets/double_back_to_exit_wrapper.dart</span>
-      <div class="finding-body">Dipakai nyata di app lama (membungkus seluruh shell dashboard dan alur test). Tidak ada pola <code>PopScope</code>/double-tap-to-exit di <code>apps/mobile</code> atau <code>packages/shared</code> mana pun (digrep). docs/qa/test.md hanya menyebutnya dalam konteks bug screenshot-protection (finding #8), bukan sebagai keputusan migrasi untuk wrapper ini sendiri.</div>
+      <div class="finding-body">Dipakai nyata di app lama (membungkus seluruh shell dashboard dan alur test). Tidak ada pola <code>PopScope</code>/double-tap-to-exit di <code>apps/mobile</code> atau <code>packages/shared</code> mana pun (digrep). docs/qa/test.md hanya menyebutnya dalam konteks bug screenshot-protection (finding #8), bukan sebagai keputusan migrasi untuk wrapper ini sendiri.
+      <p class="resolved">✅ <b>RESOLVED 2026-07-14 — OUT OF SCOPE (diterima).</b> Dicatat sebagai gap diterima di <a href="../GAPS.md">GAPS.md</a> — kode tidak diubah.</p>
+      </div>
     </div>
 
     <div class="finding">
       <span class="path">core/shared/widgets/page_layout.dart</span>
-      <div class="finding-body">Dipakai luas di app lama (9 halaman). Tidak ada widget <code>PageLayout</code>/<code>Header</code> setara di <code>design_system</code> atau <code>shared</code> — setiap halaman v2 membangun <code>Scaffold</code>+<code>AppBar</code> sendiri-sendiri. Pola yang konsisten di seluruh kodebase baru, tapi tidak ada pernyataan eksplisit di MIGRATION_LOG/docs/qa bahwa ini keputusan sengaja (berbeda dengan <code>back_confirm_wrapper.dart</code>, yang memang didiskusikan eksplisit).</div>
+      <div class="finding-body">Dipakai luas di app lama (9 halaman). Tidak ada widget <code>PageLayout</code>/<code>Header</code> setara di <code>design_system</code> atau <code>shared</code> — setiap halaman v2 membangun <code>Scaffold</code>+<code>AppBar</code> sendiri-sendiri. Pola yang konsisten di seluruh kodebase baru, tapi tidak ada pernyataan eksplisit di MIGRATION_LOG/docs/qa bahwa ini keputusan sengaja (berbeda dengan <code>back_confirm_wrapper.dart</code>, yang memang didiskusikan eksplisit).
+      <p class="resolved">✅ <b>RESOLVED 2026-07-14 — OUT OF SCOPE (diterima).</b> Dicatat sebagai gap diterima di <a href="../GAPS.md">GAPS.md</a> — kode tidak diubah.</p>
+      </div>
     </div>
 
     <div class="finding">
       <span class="path">payment/presentation/widgets/confirmation_loading.dart</span><span class="path">payment/presentation/widgets/wave_glow_loader.dart</span>
-      <div class="finding-body">Keduanya punya call site nyata di app lama (dipakai <code>confirmation_view.dart</code> dan <code>review_view.dart</code>) — jadi bukan dead code. Tapi animasi ripple/glow dan abstraksi <code>WaveGlowLoader</code>/<code>ConfirmationLoading</code> itu sendiri tidak punya padanan di <code>feature_payment</code> atau <code>design_system</code> mana pun (digrep "Wave"/"Glow"/"Loader"/"Spinner" — nol match). Konsepnya ("layar tunggu dengan spinner+judul+subjudul") bertahan sebagai <code>CircularProgressIndicator</code>+<code>Text</code> polos inline, tapi tidak ada keputusan tercatat untuk menyederhanakan animasi ini.</div>
+      <div class="finding-body">Keduanya punya call site nyata di app lama (dipakai <code>confirmation_view.dart</code> dan <code>review_view.dart</code>) — jadi bukan dead code. Tapi animasi ripple/glow dan abstraksi <code>WaveGlowLoader</code>/<code>ConfirmationLoading</code> itu sendiri tidak punya padanan di <code>feature_payment</code> atau <code>design_system</code> mana pun (digrep "Wave"/"Glow"/"Loader"/"Spinner" — nol match). Konsepnya ("layar tunggu dengan spinner+judul+subjudul") bertahan sebagai <code>CircularProgressIndicator</code>+<code>Text</code> polos inline, tapi tidak ada keputusan tercatat untuk menyederhanakan animasi ini.
+      <p class="resolved">✅ <b>RESOLVED 2026-07-14 — OUT OF SCOPE (diterima).</b> Dicatat sebagai gap diterima di <a href="../GAPS.md">GAPS.md</a> — kode tidak diubah.</p>
+      </div>
     </div>
 
     <div class="finding">
       <span class="path">auth/domain/usecases/refresh_token.dart</span>
-      <div class="finding-body">Call site nyata di app lama (<code>AuthStateCubit._handleLogout()</code>, dipicu saat sesi kedaluwarsa, memanggil <code>POST /api/auth/refresh</code>). Di akujamin-v2, <code>RefreshTokenInterceptor</code>/<code>TokenProvider.refreshToken</code> ada sebagai scaffolding generik starter-kit tapi <b>tidak pernah benar-benar disambungkan ke endpoint <code>/auth/refresh</code></b> mana pun (digrep <code>authentication</code>/<code>core</code>/<code>shared</code>) — <code>AuthCubit._restoreCachedSession()</code> hanya membaca token/user cache langsung, tanpa langkah refresh. Tidak tercatat sebagai keputusan out-of-scope di mana pun.</div>
+      <div class="finding-body">Call site nyata di app lama (<code>AuthStateCubit._handleLogout()</code>, dipicu saat sesi kedaluwarsa, memanggil <code>POST /api/auth/refresh</code>). Di akujamin-v2, <code>RefreshTokenInterceptor</code>/<code>TokenProvider.refreshToken</code> ada sebagai scaffolding generik starter-kit tapi <b>tidak pernah benar-benar disambungkan ke endpoint <code>/auth/refresh</code></b> mana pun (digrep <code>authentication</code>/<code>core</code>/<code>shared</code>) — <code>AuthCubit._restoreCachedSession()</code> hanya membaca token/user cache langsung, tanpa langkah refresh. Tidak tercatat sebagai keputusan out-of-scope di mana pun.
+      <p class="resolved">✅ <b>RESOLVED 2026-07-14 — MIGRATED.</b> User menolak TTL access-token dijadikan alasan gap — pola aslinya reaktif (401 → refresh sekali → retry → force logout kalau refresh gagal), tidak pernah butuh angka TTL. <code>RefreshTokenInterceptor</code> disambungkan ke <code>POST /auth/refresh</code> sungguhan. Efek samping: ditemukan <code>AuthInterceptor</code> ternyata tidak pernah disambungkan ke Dio produksi sama sekali (nol request terautentikasi pernah kirim Bearer token) — diperbaiki sekaligus. Lihat commit <code>0c0374a</code>.</p>
+      </div>
     </div>
 
   </div>
@@ -232,7 +251,7 @@ add('core (+root)','shared/blocs/auth/auth_state_cubit.dart','M','authentication
 add('core (+root)','shared/blocs/blocs.dart','M','Barrel; isi dipetakan di atas.');
 add('core (+root)','shared/models/error_model.dart','M','core/error/failure.dart — sealed Failure menggantikan ErrorEntity/ErrorModel.');
 add('core (+root)','shared/models/models.dart','M','Barrel; isi dipetakan di atas.');
-add('core (+root)','shared/pages/coming_soon_page.dart','U','Lihat panel Belum Terklasifikasi di atas.');
+add('core (+root)','shared/pages/coming_soon_page.dart','O','RESOLVED 2026-07-14: gap diterima, lihat panel di atas + GAPS.md.');
 add('core (+root)','shared/pages/not_found_page.dart','M','shared/router/not_found_page.dart — nama kelas/tujuan sama, kini tombol "Go home" bergaya design-system.');
 add('core (+root)','shared/pages/pages.dart','M','Barrel; isi dipetakan di atas.');
 add('core (+root)','shared/shared.dart','M','Barrel; isi dipetakan di atas.');
@@ -242,13 +261,13 @@ add('core (+root)','shared/widgets/back_confirm_wrapper.dart','C','MIGRATION_LOG
 add('core (+root)','shared/widgets/circular_progress.dart','D','Digrep seluruh lib/ lama untuk "CircularProgress(" (exclude CircularProgressIndicator): nol call site nyata di luar deklarasinya sendiri.');
 add('core (+root)','shared/widgets/confirmation_dialog.dart','C','Folded ke design_system/dialogs/app_dialog.dart\'s AppDialog.confirm/AppDialog.info generik.');
 add('core (+root)','shared/widgets/custom_markdown_widget.dart','M','design_system/text/app_markdown_text.dart (AppMarkdownText) — dibangun fresh, bukan copy, tapi penerus fungsional langsung; markdown_widget package diverifikasi non-discontinued sebelum dipakai ulang.');
-add('core (+root)','shared/widgets/dashed_border.dart','U','Lihat panel Belum Terklasifikasi di atas.');
-add('core (+root)','shared/widgets/double_back_to_exit_wrapper.dart','U','Lihat panel Belum Terklasifikasi di atas.');
+add('core (+root)','shared/widgets/dashed_border.dart','O','RESOLVED 2026-07-14: gap diterima, lihat panel di atas + GAPS.md.');
+add('core (+root)','shared/widgets/double_back_to_exit_wrapper.dart','O','RESOLVED 2026-07-14: gap diterima, lihat panel di atas + GAPS.md.');
 add('core (+root)','shared/widgets/dropdown_input_field.dart','C','Folded ke design_system/inputs/dynamic_form_field.dart\'s _buildInlineDropdown() (cabang ≤10 opsi).');
 add('core (+root)','shared/widgets/form_field_builder.dart','C','DynamicFormField, didukung shared/form_input/* — AUDIT.md §5b + tabel Shared Foundations. Perbaikan param Cubit duck-typed jadi callback onChanged typed.');
 add('core (+root)','shared/widgets/loading_dialog.dart','C','Diganti prop loading bawaan AppButton — "memiliki perilaku spinner-menggantikan-label sendiri... alih-alih menyebar if (state is Loading) di banyak tempat."');
 add('core (+root)','shared/widgets/next_send_button.dart','C','Custom-painted button diganti AppButton polos di feature_test/question_view.dart — tidak ada painter setara.');
-add('core (+root)','shared/widgets/page_layout.dart','U','Lihat panel Belum Terklasifikasi di atas.');
+add('core (+root)','shared/widgets/page_layout.dart','O','RESOLVED 2026-07-14: gap diterima, lihat panel di atas + GAPS.md.');
 add('core (+root)','shared/widgets/responsive_builder.dart','C','design_system/layout/adaptive_layout.dart (AdaptiveLayout) + breakpoints.dart — 2 breakpoint, lebih sederhana dari 3-tipe/3-heightclass lama.');
 add('core (+root)','shared/widgets/select_dialog.dart','C','Folded ke dynamic_form_field.dart\'s _DynamicFormSearchDialog privat — bukan lagi widget reusable berdiri sendiri.');
 add('core (+root)','shared/widgets/show_snack.dart','C','Tidak ada helper showSnack() bersama di v2; call site pakai ScaffoldMessenger.of(context).showSnackBar(...) langsung.');
@@ -292,9 +311,9 @@ add('onboarding','presentation/pages/onboarding_page.dart','M','feature_onboardi
 add('onboarding','presentation/routes/onboarding_routes.dart','M','Rute sendiri migrated (apps/mobile GoRoute "/onboarding"). TAPI auto-gating redirect (isFirstLaunch chain via /splash) TIDAK punya padanan di AppRouter._redirect — gap tercatat eksplisit di docs/qa/onboarding.md dan MIGRATION_LOG.md.');
 
 // ===== splash (3) =====
-add('splash','presentation/pages/splash_page.dart','U','Lihat panel Belum Terklasifikasi di atas.');
-add('splash','presentation/routes/splash_routes.dart','U','Lihat panel Belum Terklasifikasi di atas.');
-add('splash','splash.dart','U','Lihat panel Belum Terklasifikasi di atas.');
+add('splash','presentation/pages/splash_page.dart','O','RESOLVED 2026-07-14: gate session-restore MIGRATED (app.dart), layar splash penuh tetap OUT OF SCOPE — lihat panel di atas + GAPS.md.');
+add('splash','presentation/routes/splash_routes.dart','O','RESOLVED 2026-07-14: gate session-restore MIGRATED (app.dart), layar splash penuh tetap OUT OF SCOPE — lihat panel di atas + GAPS.md.');
+add('splash','splash.dart','O','RESOLVED 2026-07-14: gate session-restore MIGRATED (app.dart), layar splash penuh tetap OUT OF SCOPE — lihat panel di atas + GAPS.md.');
 
 // ===== screenshot (6) =====
 add('screenshot','data/datasources/screenshot_local_service.dart','C','Folded ke ScreenshotGatewayImpl (feature_test) — wrapper NoScreenshot.instance sama, kini digabung repo layer jadi satu gateway.');
@@ -329,7 +348,7 @@ add('form_input','form_input.dart','C','Seluruh fitur lama dipromosikan & dipeca
 
 // ===== auth (32) =====
 add('auth','auth.dart','M','Barrel; padanan authentication/lib/authentication.dart.');
-add('auth','data/datasources/auth_api_service.dart','M','authentication/data/datasources/auth_remote_datasource.dart (sendOtp/verifyOtp/getProfile/extractKtp/submitRegistration). refreshToken() TIDAK dibawa (lihat gap refresh_token.dart).');
+add('auth','data/datasources/auth_api_service.dart','M','authentication/data/datasources/auth_remote_datasource.dart (sendOtp/verifyOtp/getProfile/extractKtp/submitRegistration/refreshToken — refreshToken() ditambahkan 2026-07-14, lihat baris refresh_token.dart di bawah).');
 add('auth','data/datasources/auth_local_service.dart','M','authentication/data/datasources/secure_token_storage.dart — diperluas dari satu key access_token jadi token+cached user+SessionProfile, prefixed keys (ADR-011).');
 add('auth','data/models/user_model.dart','C','Dipecah jadi user_profile_model.dart yang menggerakkan User DAN SessionProfile — keputusan arsitektur disengaja (docs/qa/account.md) supaya nik tidak pernah sampai CrashReporter.setUserId.');
 add('auth','data/repositories/auth_repo_impl.dart','M','authentication/data/repositories/auth_repository_impl.dart. Catatan: extractKTP() versi lama sendiri sudah dead code — v2 memperbaiki ini, AuthRepositoryImpl.extractKtp() kini jadi jalur panggilan nyata.');
@@ -341,7 +360,7 @@ add('auth','domain/usecases/do_register.dart','M','Panggilan API→AuthRepositor
 add('auth','domain/usecases/extract_ktp.dart','M','AuthRepository.extractKtp(), dipanggil langsung dari RegisterCubit.scanKtp(). File lama justru bypass AuthRepository.extractKTP() (panggil AuthApiService langsung) — v2 memperbaiki indirection ini.');
 add('auth','domain/usecases/get_profile.dart','M','AuthRemoteDataSource.getProfile(), dipakai di AuthRepositoryImpl.verifyOtp() dan refreshProfile().');
 add('auth','domain/usecases/get_token.dart','M','AuthCubit._restoreCachedSession() + SecureTokenStorage.getCachedUser() — kini cek User cache, bukan raw token string.');
-add('auth','domain/usecases/refresh_token.dart','U','Lihat panel Belum Terklasifikasi di atas.');
+add('auth','domain/usecases/refresh_token.dart','M','RESOLVED 2026-07-14: RefreshTokenInterceptor disambungkan ke POST /auth/refresh sungguhan (reaktif, tanpa perlu TTL) — commit 0c0374a. Lihat panel di atas.');
 add('auth','domain/usecases/save_token.dart','M','SecureTokenStorage.saveAccessToken()/saveTokens(), dipanggil inline dari AuthRepositoryImpl.verifyOtp()/login().');
 add('auth','domain/usecases/send_otp.dart','M','authentication\'s SendOtpUseCase + AuthRepository.sendOtp().');
 add('auth','presentation/blocs/camera/camera_state.dart','M','authentication/presentation/cubit/selfie_camera_state.dart (SelfieCameraState) — doc comment: "Mirrors CameraState lama."');
@@ -411,7 +430,7 @@ add('dashboard','presentation/blocs/voucher/voucher_state_cubit.dart','M','featu
 add('dashboard','presentation/config/home_menu_config.dart','C','buildMenus()\'s logika onTap (Tes Psikologi w/ gate isRegistered, Konseling, FAQ/Kebijakan/Tentang) folded ke IconButton AppBar hardcoded di feature_home\'s HomeView. Tombol Payment bawa gate !user.isRegistered identik.');
 add('dashboard','presentation/pages/account_page.dart','M','feature_profile/presentation/pages/profile_page.dart — permanent finding #2 + docs/qa/account.md. Read-only avatar/nama/nik+logout dikonfirmasi 1:1, "Ganti Password" dead code benar tidak di-port.');
 add('dashboard','presentation/pages/history_page.dart','M','feature_history/presentation/pages/history_page.dart — docs/qa/history.md header konfirmasi mapping ini.');
-add('dashboard','presentation/pages/home_page.dart','U','Lihat panel Belum Terklasifikasi di atas — temuan terpenting audit ini.');
+add('dashboard','presentation/pages/home_page.dart','M','RESOLVED 2026-07-14: teaser profil + banner "lengkapi profil" sungguhan dibangun di feature_home, lihat docs/qa/home.md. Lihat panel di atas — temuan terpenting audit ini.');
 add('dashboard','presentation/routes/dashboard_routes.dart','M','apps/mobile/app.dart\'s _shellRoutes/_shellDestinations, disambungkan ke shared\'s AppRouter.shellRoutes/AppShell (TAHAP 3).');
 add('dashboard','presentation/widgets/custom_bottom_nav_bar.dart','C','shared/router/app_shell.dart\'s AppShell (Material NavigationBar, list AppShellDestination generik) menggantikan trio CustomBottomNavBar+MenuItem+NavCubit.');
 add('dashboard','presentation/widgets/dashboard_layout.dart','C','Dipecah dua: Scaffold bottom-nav → AppShell (TAHAP 3); _handleConfirm/_handleSent/_handleEnded → apps/mobile\'s DashboardNotificationListener (TAHAP 4), doc comment eksplisit "Ported from DashboardLayout". Kebocoran konten notifikasi diperbaiki (finding #6).');
@@ -458,14 +477,14 @@ add('payment','presentation/blocs/payment_state.dart','M','feature_payment/prese
 add('payment','presentation/blocs/payment_state_cubit.dart','M','feature_payment/presentation/cubit/payment_cubit.dart. 5 koreksi disetujui didokumentasikan docs/qa/payment.md (clear-on-parent-change, split StatusVoucher, disconnect-selalu-unsubscribe, prefix key ADR-011, cleanup proof-image).');
 add('payment','presentation/pages/payment_page.dart','M','feature_payment/presentation/pages/payment_page.dart, dipecah PaymentPage/PaymentView untuk testability; step-header UI diimplementasi ulang inline sebagai _StepHeader/_StepDot.');
 add('payment','presentation/routes/payment_routes.dart','M','apps/mobile/app.dart\'s GoRoute("/payment") — registrasi rute terpusat di composition root (konvensi ADR-010).');
-add('payment','presentation/widgets/confirmation_loading.dart','U','Lihat panel Belum Terklasifikasi di atas.');
+add('payment','presentation/widgets/confirmation_loading.dart','O','RESOLVED 2026-07-14: gap diterima, lihat panel di atas + GAPS.md.');
 add('payment','presentation/widgets/confirmation_view.dart','M','feature_payment/presentation/widgets/confirmation_view.dart — perilaku timeout 5-menit/backToDemography dipertahankan persis; child ConfirmationLoading diganti CircularProgressIndicator+Text polos inline.');
 add('payment','presentation/widgets/demography_view.dart','M','feature_payment/presentation/widgets/demography_view.dart, kini pakai DynamicFormField/filterCascadingOptions/clearDependentFields (fondasi form_input + perbaikan cascading-select).');
 add('payment','presentation/widgets/payment_method.dart','D','Digrep "PaymentMethod" di seluruh lib/ lama: hanya match deklarasi kelasnya sendiri; PaymentMethodView (kelas beda, nyata) yang benar-benar dipakai di payment_page.dart:190.');
 add('payment','presentation/widgets/payment_method_view.dart','M','feature_payment/presentation/widgets/payment_method_view.dart, termasuk upload bukti kamera+galeri, imageQuality:70, dan perbaikan cleanup pasca-upload.');
 add('payment','presentation/widgets/review_view.dart','M','feature_payment/presentation/widgets/review_view.dart (isSuccess→isPaid); child ConfirmationLoading-nya diganti widget _PaymentPending polos inline.');
 add('payment','presentation/widgets/step_indicator.dart','M','Call site nyata dikonfirmasi (4 titik). Folded inline jadi _StepDot/_StepHeader privat di payment_page.dart — bukan lagi file widget berdiri sendiri, tapi konsep progress-step tetap dibawa.');
-add('payment','presentation/widgets/wave_glow_loader.dart','U','Lihat panel Belum Terklasifikasi di atas.');
+add('payment','presentation/widgets/wave_glow_loader.dart','O','RESOLVED 2026-07-14: gap diterima, lihat panel di atas + GAPS.md.');
 
 // ===== test (42) =====
 add('test','data/datasources/test_api_service.dart','M','feature_test/data/datasources/test_remote_datasource.dart. getTests/saveTestAnswer di-port dengan endpoint/body sama; method matchFace dihapus (dead code).');
