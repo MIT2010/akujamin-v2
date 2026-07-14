@@ -141,10 +141,10 @@ packages:
     dependency: transitive
     description:
       name: camera
-      sha256: "034c38cb8014d29698dcae6d20276688a1bf74e6487dfeb274d70ea05d5f7777"
+      sha256: "558230d6ce6ccea856b32d390db7e7b557adf4d9320aa614481bd3f2f608953f"
       url: "https://pub.dev"
     source: hosted
-    version: "0.12.0+1"
+    version: "0.12.0+2"
   camera_android_camerax:
     dependency: transitive
     description:
@@ -213,10 +213,10 @@ packages:
     dependency: transitive
     description:
       name: cli_launcher
-      sha256: "35cf15a3ffaeb9c11849eaa0afba761bb76dceb42d050532bfd3e1299c9748cd"
+      sha256: "96883f87648524292e24e2cc6a369fbdf64883473fe3e3ddadd3d857bf16a484"
       url: "https://pub.dev"
     source: hosted
-    version: "0.3.3+1"
+    version: "0.3.3+2"
   cli_util:
     dependency: transitive
     description:
@@ -664,30 +664,6 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "0.7.0"
-  hive_ce:
-    dependency: transitive
-    description:
-      name: hive_ce
-      sha256: "8e9980e68643afb1e765d3af32b47996552a64e190d03faf622cea07c1294418"
-      url: "https://pub.dev"
-    source: hosted
-    version: "2.19.3"
-  hive_ce_flutter:
-    dependency: transitive
-    description:
-      name: hive_ce_flutter
-      sha256: "2677e95a333ff15af43ccd06af7eb7abbf1a4f154ea071997f3de4346cae913a"
-      url: "https://pub.dev"
-    source: hosted
-    version: "2.3.4"
-  hive_ce_generator:
-    dependency: transitive
-    description:
-      name: hive_ce_generator
-      sha256: c9a7cda57823ffec35846c051637ddcd105eafa253e7395d9c8c0ed5e87fbb72
-      url: "https://pub.dev"
-    source: hosted
-    version: "1.11.1"
   hooks:
     dependency: transitive
     description:
@@ -840,14 +816,6 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "1.0.5"
-  isolate_channel:
-    dependency: transitive
-    description:
-      name: isolate_channel
-      sha256: a9d3d620695bc984244dafae00b95e4319d6974b2d77f4b9e1eb4f2efe099094
-      url: "https://pub.dev"
-    source: hosted
-    version: "0.6.1"
   jni:
     dependency: transitive
     description:
@@ -1324,10 +1292,10 @@ packages:
     dependency: transitive
     description:
       name: shared_preferences_android
-      sha256: "93ae5884a9df5d3bb696825bceb3a17590754548b5d740eba51500afc8d088f5"
+      sha256: "0634e64bd719f89c012f392938e173521f535d3ecaf66558fa94a056d22b5cc7"
       url: "https://pub.dev"
     source: hosted
-    version: "2.4.26"
+    version: "2.4.27"
   shared_preferences_foundation:
     dependency: transitive
     description:
@@ -1633,10 +1601,10 @@ packages:
     dependency: transitive
     description:
       name: video_player
-      sha256: "0431179e1a7a2234a1148f64dde63c73167ca23829815169b24cc0bc6b9444a3"
+      sha256: "20ef311160e2ced020a62f38e4cc399a1bf289e722fc5fe37c9d7b18e44c9e8d"
       url: "https://pub.dev"
     source: hosted
-    version: "2.12.0"
+    version: "2.13.0"
   video_player_android:
     dependency: transitive
     description:
@@ -1773,14 +1741,6 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "2.2.4"
-  yaml_writer:
-    dependency: transitive
-    description:
-      name: yaml_writer
-      sha256: "69651cd7238411179ac32079937d4aa9a2970150d6b2ae2c6fe6de09402a5dc5"
-      url: "https://pub.dev"
-    source: hosted
-    version: "2.1.0"
 sdks:
   dart: ">=3.12.2 <4.0.0"
   flutter: ">=3.44.0"

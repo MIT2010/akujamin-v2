@@ -1,0 +1,571 @@
+<title>Rekonsiliasi akujamin-app to akujamin-v2</title>
+<style>
+:root{
+  --bg:#f2f3ef; --bg-panel:#fbfbf9; --ink:#1b1e1c; --muted:#5b615c; --faint:#8c9089;
+  --border:#d8dad3; --border-strong:#c2c5bc;
+  --accent:#33415c; --accent-ink:#eef1f6;
+  --m:#2f6b3f; --m-bg:#e3ede4; --m-ink:#1f4a2a;
+  --c:#2a5c8a; --c-bg:#e2ecf3; --c-ink:#1c3f60;
+  --d:#6b6f6a; --d-bg:#e8e8e5; --d-ink:#45483f;
+  --o:#9a6b1f; --o-bg:#f3e9d4; --o-ink:#6b4a12;
+  --u:#a23b2e; --u-bg:#f6e1de; --u-ink:#7a2c22;
+  --serif:Iowan Old Style,Palatino Linotype,Palatino,Georgia,serif;
+  --sans:-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,Helvetica,Arial,sans-serif;
+  --mono:ui-monospace,SF Mono,Cascadia Code,Consolas,monospace;
+}
+@media (prefers-color-scheme:dark){
+  :root{
+    --bg:#15181a; --bg-panel:#1c2023; --ink:#e7e9e4; --muted:#a3a89e; --faint:#6c7169;
+    --border:#33372f; --border-strong:#454a3f;
+    --accent:#8ea3c4; --accent-ink:#12161c;
+    --m:#7fc492; --m-bg:#1c2f21; --m-ink:#a8dcb4;
+    --c:#82b3de; --c-bg:#1a2733; --c-ink:#aecdec;
+    --d:#9a9d95; --d-bg:#25281f; --d-ink:#c2c5ba;
+    --o:#dcb168; --o-bg:#332811; --o-ink:#eccd93;
+    --u:#e08b7c; --u-bg:#3a1e1a; --u-ink:#f0b3a7;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#15181a; --bg-panel:#1c2023; --ink:#e7e9e4; --muted:#a3a89e; --faint:#6c7169;
+  --border:#33372f; --border-strong:#454a3f;
+  --accent:#8ea3c4; --accent-ink:#12161c;
+  --m:#7fc492; --m-bg:#1c2f21; --m-ink:#a8dcb4;
+  --c:#82b3de; --c-bg:#1a2733; --c-ink:#aecdec;
+  --d:#9a9d95; --d-bg:#25281f; --d-ink:#c2c5ba;
+  --o:#dcb168; --o-bg:#332811; --o-ink:#eccd93;
+  --u:#e08b7c; --u-bg:#3a1e1a; --u-ink:#f0b3a7;
+}
+:root[data-theme="light"]{
+  --bg:#f2f3ef; --bg-panel:#fbfbf9; --ink:#1b1e1c; --muted:#5b615c; --faint:#8c9089;
+  --border:#d8dad3; --border-strong:#c2c5bc;
+  --accent:#33415c; --accent-ink:#eef1f6;
+  --m:#2f6b3f; --m-bg:#e3ede4; --m-ink:#1f4a2a;
+  --c:#2a5c8a; --c-bg:#e2ecf3; --c-ink:#1c3f60;
+  --d:#6b6f6a; --d-bg:#e8e8e5; --d-ink:#45483f;
+  --o:#9a6b1f; --o-bg:#f3e9d4; --o-ink:#6b4a12;
+  --u:#a23b2e; --u-bg:#f6e1de; --u-ink:#7a2c22;
+}
+*{box-sizing:border-box}
+body{margin:0;font-family:var(--sans);color:var(--ink);background:transparent;line-height:1.55}
+.sr-only{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0,0,0,0)}
+.wrap{max-width:1180px;margin:0 auto;padding:0.5rem 0 3rem}
+header.masthead{padding:1.5rem 0 1.75rem;border-bottom:1px solid var(--border)}
+.eyebrow{font-family:var(--mono);font-size:11px;letter-spacing:0.09em;text-transform:uppercase;color:var(--muted)}
+h1{font-family:var(--serif);font-weight:500;font-size:30px;margin:0.35rem 0 0.5rem;text-wrap:balance}
+.dek{color:var(--muted);font-size:15px;max-width:62ch;margin:0}
+.dek code, .cell code, .finding-body code{font-family:var(--mono);font-size:0.92em;background:var(--bg);border:1px solid var(--border);border-radius:4px;padding:0 4px}
+
+.stats{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:1px;background:var(--border);border:1px solid var(--border);border-radius:10px;overflow:hidden;margin:1.75rem 0}
+.stat{background:var(--bg-panel);padding:0.85rem 0.75rem;text-align:left}
+.stat .n{font-family:var(--mono);font-size:22px;font-variant-numeric:tabular-nums;font-weight:500}
+.stat .l{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:0.06em;margin-top:2px}
+.stat.tot .n{color:var(--ink)}
+.stat.cm .n{color:var(--m)} .stat.cc .n{color:var(--c)} .stat.cd .n{color:var(--d)} .stat.co .n{color:var(--o)} .stat.cu .n{color:var(--u)}
+
+section.panel{background:var(--bg-panel);border:1px solid var(--border);border-radius:12px;padding:1.25rem 1.4rem;margin:1.5rem 0}
+h2{font-family:var(--serif);font-weight:500;font-size:19px;margin:0 0 0.15rem}
+.section-note{color:var(--muted);font-size:13.5px;margin:0 0 1rem}
+
+.findings-list{display:flex;flex-direction:column;gap:0.9rem}
+.finding{border-left:3px solid var(--u);padding:0.15rem 0 0.15rem 0.9rem}
+.finding .path{font-family:var(--mono);font-size:13px;color:var(--u-ink);background:var(--u-bg);display:inline-block;padding:1px 7px;border-radius:5px;margin-bottom:0.3rem}
+.finding .path + .path{margin-left:4px}
+.finding-body{font-size:14px;color:var(--ink)}
+.finding-body b{font-weight:500}
+
+.toolbar{display:flex;gap:0.6rem;align-items:center;flex-wrap:wrap;margin:1.5rem 0 0.85rem}
+.toolbar input[type=search]{flex:1;min-width:200px;height:36px;border:1px solid var(--border-strong);border-radius:8px;background:var(--bg-panel);color:var(--ink);padding:0 12px;font-size:14px;font-family:var(--sans)}
+.toolbar input[type=search]:focus{outline:2px solid var(--accent);outline-offset:1px}
+.chip{border:1px solid var(--border-strong);background:var(--bg-panel);color:var(--muted);font-size:12.5px;font-family:var(--mono);padding:5px 10px;border-radius:999px;cursor:pointer;user-select:none}
+.chip[aria-pressed="true"]{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+.chip .cnt{opacity:0.75}
+.result-count{font-size:12.5px;color:var(--faint);font-family:var(--mono);margin:0 0 0.6rem}
+
+.folder-group{margin-bottom:0.25rem}
+.folder-head{position:sticky;top:0;background:var(--bg);padding:0.9rem 0 0.35rem;font-family:var(--mono);font-size:12px;letter-spacing:0.05em;text-transform:uppercase;color:var(--muted);border-bottom:1px solid var(--border);z-index:2}
+.folder-head .fc{color:var(--faint);margin-left:6px}
+table{width:100%;border-collapse:collapse;font-size:13.5px}
+colgroup col.c1{width:30%} colgroup col.c2{width:12%} colgroup col.c3{width:58%}
+tbody tr{border-bottom:1px solid var(--border)}
+tbody tr:hover{background:var(--bg-panel)}
+td{padding:8px 10px;vertical-align:top}
+td.path{font-family:var(--mono);font-size:12.5px;color:var(--ink);word-break:break-word}
+td.cat{white-space:nowrap}
+td.detail{color:var(--muted);font-size:13px}
+.badge{display:inline-block;font-family:var(--mono);font-size:11px;letter-spacing:0.02em;padding:2px 8px;border-radius:999px;font-weight:500}
+.badge.M{background:var(--m-bg);color:var(--m-ink)}
+.badge.C{background:var(--c-bg);color:var(--c-ink)}
+.badge.D{background:var(--d-bg);color:var(--d-ink)}
+.badge.O{background:var(--o-bg);color:var(--o-ink)}
+.badge.U{background:var(--u-bg);color:var(--u-ink);box-shadow:0 0 0 1px var(--u) inset}
+
+.legend{display:flex;gap:14px;flex-wrap:wrap;font-size:12px;color:var(--muted);margin-top:0.5rem}
+.legend span{display:inline-flex;align-items:center;gap:5px}
+.legend i{width:9px;height:9px;border-radius:50%;display:inline-block}
+.legend .m i{background:var(--m)} .legend .c i{background:var(--c)} .legend .d i{background:var(--d)} .legend .o i{background:var(--o)} .legend .u i{background:var(--u)}
+
+footer.foot{margin-top:2.5rem;padding-top:1rem;border-top:1px solid var(--border);font-size:12.5px;color:var(--faint)}
+@media (max-width:640px){
+  .stats{grid-template-columns:repeat(2,1fr)}
+  colgroup col.c1{width:38%} colgroup col.c2{width:14%} colgroup col.c3{width:48%}
+}
+</style>
+<div class="wrap">
+<h2 class="sr-only">Tabel rekonsiliasi berisi status migrasi untuk 271 file Dart dari akujamin-app ke akujamin-v2, dapat difilter dan dicari</h2>
+
+<header class="masthead">
+  <div class="eyebrow">Audit rekonsiliasi akhir · LANGKAH 1</div>
+  <h1>271 file, satu per satu</h1>
+  <p class="dek">Setiap file Dart di <code>akujamin-app/lib</code> ditelusuri ke disposisinya di <code>akujamin-v2</code> — dimigrasikan, dikonsolidasi, dikonfirmasi mati, atau di luar cakupan. Dibangun dari pembacaan langsung kedua basis kode, MIGRATION_LOG.md, dan docs/qa/*.md — bukan ingatan.</p>
+</header>
+
+<div class="stats" id="stats"></div>
+
+<section class="panel" id="findings-panel">
+  <h2>Belum terklasifikasi — 11 file</h2>
+  <p class="section-note">File yang tidak masuk kategori manapun setelah audit. Ini bukan file yang dilewatkan pemeriksaan — setiap satu sudah diverifikasi langsung (dibaca, di-grep) dan secara jujur tidak cocok dengan migrated/consolidated/dead/out-of-scope.</p>
+  <div class="findings-list">
+
+    <div class="finding">
+      <span class="path">dashboard/presentation/pages/home_page.dart</span>
+      <div class="finding-body"><b>Temuan paling penting di seluruh audit.</b> Navigasinya memang berpindah (ikon AppBar di <code>feature_home</code>'s HomeView mewarisi logika onTap <code>home_menu_config.dart</code>, termasuk gate <code>isRegistered</code>). Tapi <b>konten halaman itu sendiri tidak pernah dipindahkan</b> — teaser profil, banner "lengkapi profil", dan grid menu about di app lama tidak punya padanan di <code>feature_home</code>, yang isinya adalah konsep "home feed" generik (list HomeItem dari cache Hive, endpoint <code>/home/feed</code>) yang <b>sama sekali tidak ada di app lama</b> — digrep menyeluruh, nol kecocokan. Bukan rename, bukan simplifikasi yang tercatat: konten layar home app lama sekarang tidak dirender di mana pun.</div>
+    </div>
+
+    <div class="finding">
+      <span class="path">splash/presentation/pages/splash_page.dart</span><span class="path">splash/presentation/routes/splash_routes.dart</span><span class="path">splash/splash.dart</span>
+      <div class="finding-body">Ketiganya nyata dan aktif dipakai di app lama (target redirect asli untuk <code>AuthStatus.initial</code>/<code>checkingSession</code>). Tidak ada padanan di mana pun di akujamin-v2 (AppRouter._redirect dibaca penuh — tidak ada gate bootstrap/loading). MIGRATION_LOG.md mencatat status "belum" dengan catatan "kemungkinan masuk ke app bootstrap" — itu rencana, bukan keputusan tercatat untuk mengecualikan.</div>
+    </div>
+
+    <div class="finding">
+      <span class="path">core/shared/pages/coming_soon_page.dart</span>
+      <div class="finding-body">Fallback nyata di app lama: dipanggil <code>home_menu_config.dart</code> saat konten "about" yang diminta (FAQ/privasi/tentang) tidak dikembalikan server. Tidak ada <code>ComingSoonPage</code> atau padanan di akujamin-v2; tombol setara sekarang push langsung ke <code>/about</code> dst tanpa fallback null-content. Tidak tercatat sebagai pengecualian sengaja di MIGRATION_LOG.md atau docs/qa manapun.</div>
+    </div>
+
+    <div class="finding">
+      <span class="path">core/shared/widgets/dashed_border.dart</span>
+      <div class="finding-body">Dipakai nyata di app lama (upload bukti pembayaran, capture KTP/selfie). Layar setara di akujamin-v2 pakai <code>Border.all(...)</code> solid biasa. Tidak ada keputusan "hilangkan dashed styling" tercatat di MIGRATION_LOG.md maupun docs/qa/payment.md atau register.md — tampak seperti simplifikasi visual diam-diam.</div>
+    </div>
+
+    <div class="finding">
+      <span class="path">core/shared/widgets/double_back_to_exit_wrapper.dart</span>
+      <div class="finding-body">Dipakai nyata di app lama (membungkus seluruh shell dashboard dan alur test). Tidak ada pola <code>PopScope</code>/double-tap-to-exit di <code>apps/mobile</code> atau <code>packages/shared</code> mana pun (digrep). docs/qa/test.md hanya menyebutnya dalam konteks bug screenshot-protection (finding #8), bukan sebagai keputusan migrasi untuk wrapper ini sendiri.</div>
+    </div>
+
+    <div class="finding">
+      <span class="path">core/shared/widgets/page_layout.dart</span>
+      <div class="finding-body">Dipakai luas di app lama (9 halaman). Tidak ada widget <code>PageLayout</code>/<code>Header</code> setara di <code>design_system</code> atau <code>shared</code> — setiap halaman v2 membangun <code>Scaffold</code>+<code>AppBar</code> sendiri-sendiri. Pola yang konsisten di seluruh kodebase baru, tapi tidak ada pernyataan eksplisit di MIGRATION_LOG/docs/qa bahwa ini keputusan sengaja (berbeda dengan <code>back_confirm_wrapper.dart</code>, yang memang didiskusikan eksplisit).</div>
+    </div>
+
+    <div class="finding">
+      <span class="path">payment/presentation/widgets/confirmation_loading.dart</span><span class="path">payment/presentation/widgets/wave_glow_loader.dart</span>
+      <div class="finding-body">Keduanya punya call site nyata di app lama (dipakai <code>confirmation_view.dart</code> dan <code>review_view.dart</code>) — jadi bukan dead code. Tapi animasi ripple/glow dan abstraksi <code>WaveGlowLoader</code>/<code>ConfirmationLoading</code> itu sendiri tidak punya padanan di <code>feature_payment</code> atau <code>design_system</code> mana pun (digrep "Wave"/"Glow"/"Loader"/"Spinner" — nol match). Konsepnya ("layar tunggu dengan spinner+judul+subjudul") bertahan sebagai <code>CircularProgressIndicator</code>+<code>Text</code> polos inline, tapi tidak ada keputusan tercatat untuk menyederhanakan animasi ini.</div>
+    </div>
+
+    <div class="finding">
+      <span class="path">auth/domain/usecases/refresh_token.dart</span>
+      <div class="finding-body">Call site nyata di app lama (<code>AuthStateCubit._handleLogout()</code>, dipicu saat sesi kedaluwarsa, memanggil <code>POST /api/auth/refresh</code>). Di akujamin-v2, <code>RefreshTokenInterceptor</code>/<code>TokenProvider.refreshToken</code> ada sebagai scaffolding generik starter-kit tapi <b>tidak pernah benar-benar disambungkan ke endpoint <code>/auth/refresh</code></b> mana pun (digrep <code>authentication</code>/<code>core</code>/<code>shared</code>) — <code>AuthCubit._restoreCachedSession()</code> hanya membaca token/user cache langsung, tanpa langkah refresh. Tidak tercatat sebagai keputusan out-of-scope di mana pun.</div>
+    </div>
+
+  </div>
+</section>
+
+<section class="panel">
+  <h2>Catatan tambahan (tidak memblokir klasifikasi, tapi layak diketahui)</h2>
+  <p class="section-note">Ditemukan di dalam file yang tetap terklasifikasi jelas — tidak dihitung dalam 12 gap di atas, tapi bukan keputusan tercatat juga.</p>
+  <div class="findings-list">
+    <div class="finding">
+      <span class="path">test/presentation/widgets/test_content.dart</span>
+      <div class="finding-body">File ini sendiri CONSOLIDATED (folded ke <code>TestPage</code>/<code>TestView</code>). Tapi sub-widget <code>BlinkingFaceStatus</code>-nya (ikon wajah berkedip saat proctoring) tidak punya padanan render di mana pun — field <code>showWarning</code> bertahan di <code>ProctoringState</code> tapi tidak ada UI baru yang menggambarnya.</div>
+    </div>
+    <div class="finding">
+      <span class="path">websocket/domain/usecases/connect.dart</span><span class="path">disconnect.dart</span>
+      <div class="finding-body">Diklasifikasikan CONSOLIDATED (folded ke <code>SocketGatewayImpl</code>). Tapi call site eksplisit app lama (connect saat login, disconnect saat logout di <code>AuthStateCubit</code>) tidak punya padanan langsung — connect kini implisit di dalam <code>subscribe()</code>, disconnect implisit lewat auto-teardown saat channel terakhir di-unsubscribe. Konsisten dengan resolusi permanent finding #1 (TAHAP 1-4), tapi bukan port call-site yang eksplisit.</div>
+    </div>
+  </div>
+</section>
+
+<div class="toolbar">
+  <input type="search" id="search" placeholder="Cari nama file atau kata kunci…" aria-label="Cari file">
+  <button class="chip" data-filter="all" aria-pressed="true">semua <span class="cnt" id="cnt-all"></span></button>
+  <button class="chip" data-filter="M" aria-pressed="false">migrated <span class="cnt" id="cnt-M"></span></button>
+  <button class="chip" data-filter="C" aria-pressed="false">consolidated <span class="cnt" id="cnt-C"></span></button>
+  <button class="chip" data-filter="D" aria-pressed="false">dead code <span class="cnt" id="cnt-D"></span></button>
+  <button class="chip" data-filter="O" aria-pressed="false">out of scope <span class="cnt" id="cnt-O"></span></button>
+  <button class="chip" data-filter="U" aria-pressed="false">gap <span class="cnt" id="cnt-U"></span></button>
+</div>
+<p class="result-count" id="result-count"></p>
+<div class="legend">
+  <span class="m"><i></i>migrated — destinasi langsung dikutip</span>
+  <span class="c"><i></i>consolidated — beberapa file jadi satu abstraksi baru</span>
+  <span class="d"><i></i>dead code — dibuktikan lewat grep, bukan diasumsikan</span>
+  <span class="o"><i></i>out of scope — alasan eksplisit dikutip</span>
+  <span class="u"><i></i>gap — tidak cocok kategori manapun</span>
+</div>
+
+<div id="table-root"></div>
+
+<footer class="foot">
+  Dibangun dari pembacaan langsung <code>akujamin-app/lib</code> (271 file) dan <code>akujamin-v2</code> saat ini, cross-check ke MIGRATION_LOG.md dan docs/qa/*.md. Enam audit paralel per folder fitur, disintesis manual. Nol perubahan kode dalam proses audit ini.
+</footer>
+</div>
+<script>
+const ROWS = [];
+function add(folder, file, cat, detail){ROWS.push({folder,file,cat,detail});}
+
+// ===== core (53) + root (3) = 56 =====
+add('core (+root)','constants/constants.dart','M','Barrel; pola export barrel bertahan di setiap lib/&lt;package&gt;.dart baru.');
+add('core (+root)','constants/env.dart','M','packages/core/lib/src/env/env.dart — Env/Flavor, sekarang termasuk wsHost/wsPort/wsKey.');
+add('core (+root)','constants/image_asset.dart','O','docs/qa/onboarding.md: "Simplified ke Material Icons — aset asli tidak tersedia untuk di-port." Tidak ada ImageAsset/assets/images di v2.');
+add('core (+root)','constants/reusable.dart','C','Dipecah: resizeImage→authentication/data/resize_image.dart; convertCameraImageToJpeg→feature_test/camera_image_jpeg_converter.dart; changeValues→shared/form_input/cascading_options.dart; formatDuration di-inline ke time_indicator.dart.');
+add('core (+root)','constants/socket_event_name.dart','M','Nilai bertahan tapi tidak lagi terpusat — string literal inline di tiap cubit konsumen (chat_cubit.dart, payment_cubit.dart, dashboard_notification_listener.dart).');
+add('core (+root)','network/base_api_service.dart','M','packages/core/lib/src/network/api_client.dart — Result&lt;Failure,T&gt; menggantikan Either&lt;ErrorEntity,T&gt;.');
+add('core (+root)','network/dio_client.dart','M','Dio construction pindah ke shared/di/register_module.dart (RegisterModule.dio()).');
+add('core (+root)','network/error_handler.dart','M','api_client.dart\'s _mapDioError() + core/error/failure.dart (ServerFailure/NetworkFailure/UnauthorizedFailure).');
+add('core (+root)','network/interceptors.dart','M','Dipecah 1:1 — LoggerInterceptor→logging_interceptor.dart (kini body-free, finding #3), AuthInterceptor→auth_interceptor.dart. Baru: retry/connectivity/refresh-token interceptor tanpa padanan lama.');
+add('core (+root)','network/network.dart','M','Barrel; isi dipetakan di atas.');
+add('core (+root)','routes/app_routes.dart','M','shared/router/app_router.dart (AppRouter, _redirect) + route list di apps/mobile/app.dart. Permanent finding #5 mencatat bug nyata ditemukan/diperbaiki di redirect ini.');
+add('core (+root)','routes/go_router_refresh_stream.dart','M','shared/router/go_router_refresh_stream.dart — pola sama, tambah notifyListeners() saat konstruksi + cancel di dispose().');
+add('core (+root)','routes/routes.dart','M','Barrel; isi dipetakan di atas.');
+add('core (+root)','session/auth_session_manager.dart','M','shared/router/auth_session.dart (AuthSession) + authentication/auth_session_adapter.dart — dibangun ulang sebagai interface/adapter, bukan broadcast-stream event bus.');
+add('core (+root)','shared/blocs/auth/auth_state.dart','M','authentication/presentation/cubit/auth_state.dart — freezed sealed AuthState (initial/authenticated/unauthenticated), lebih sederhana dari AuthStatus enum 7 nilai lama.');
+add('core (+root)','shared/blocs/auth/auth_state_cubit.dart','M','authentication/auth_cubit.dart (sesi/logout) + login_cubit.dart/otp_login_cubit.dart. MIGRATION_LOG: countdown/expiry UI dan connect-on-login BELUM direplikasi (permanent finding #1).');
+add('core (+root)','shared/blocs/blocs.dart','M','Barrel; isi dipetakan di atas.');
+add('core (+root)','shared/models/error_model.dart','M','core/error/failure.dart — sealed Failure menggantikan ErrorEntity/ErrorModel.');
+add('core (+root)','shared/models/models.dart','M','Barrel; isi dipetakan di atas.');
+add('core (+root)','shared/pages/coming_soon_page.dart','U','Lihat panel Belum Terklasifikasi di atas.');
+add('core (+root)','shared/pages/not_found_page.dart','M','shared/router/not_found_page.dart — nama kelas/tujuan sama, kini tombol "Go home" bergaya design-system.');
+add('core (+root)','shared/pages/pages.dart','M','Barrel; isi dipetakan di atas.');
+add('core (+root)','shared/shared.dart','M','Barrel; isi dipetakan di atas.');
+add('core (+root)','shared/widgets/app_button.dart','M','design_system/widgets/buttons/app_button.dart — AppButton dengan state loading bawaan (15 titik pakai di app lama).');
+add('core (+root)','shared/widgets/app_card.dart','M','design_system/widgets/cards/app_card.dart (8 titik pakai di app lama).');
+add('core (+root)','shared/widgets/back_confirm_wrapper.dart','C','MIGRATION_LOG (register row): "AppDialog.confirm (sudah ada) cukup, tidak perlu komponen baru." Folded ke AppDialog.confirm + PopScope ad-hoc per call site.');
+add('core (+root)','shared/widgets/circular_progress.dart','D','Digrep seluruh lib/ lama untuk "CircularProgress(" (exclude CircularProgressIndicator): nol call site nyata di luar deklarasinya sendiri.');
+add('core (+root)','shared/widgets/confirmation_dialog.dart','C','Folded ke design_system/dialogs/app_dialog.dart\'s AppDialog.confirm/AppDialog.info generik.');
+add('core (+root)','shared/widgets/custom_markdown_widget.dart','M','design_system/text/app_markdown_text.dart (AppMarkdownText) — dibangun fresh, bukan copy, tapi penerus fungsional langsung; markdown_widget package diverifikasi non-discontinued sebelum dipakai ulang.');
+add('core (+root)','shared/widgets/dashed_border.dart','U','Lihat panel Belum Terklasifikasi di atas.');
+add('core (+root)','shared/widgets/double_back_to_exit_wrapper.dart','U','Lihat panel Belum Terklasifikasi di atas.');
+add('core (+root)','shared/widgets/dropdown_input_field.dart','C','Folded ke design_system/inputs/dynamic_form_field.dart\'s _buildInlineDropdown() (cabang ≤10 opsi).');
+add('core (+root)','shared/widgets/form_field_builder.dart','C','DynamicFormField, didukung shared/form_input/* — AUDIT.md §5b + tabel Shared Foundations. Perbaikan param Cubit duck-typed jadi callback onChanged typed.');
+add('core (+root)','shared/widgets/loading_dialog.dart','C','Diganti prop loading bawaan AppButton — "memiliki perilaku spinner-menggantikan-label sendiri... alih-alih menyebar if (state is Loading) di banyak tempat."');
+add('core (+root)','shared/widgets/next_send_button.dart','C','Custom-painted button diganti AppButton polos di feature_test/question_view.dart — tidak ada painter setara.');
+add('core (+root)','shared/widgets/page_layout.dart','U','Lihat panel Belum Terklasifikasi di atas.');
+add('core (+root)','shared/widgets/responsive_builder.dart','C','design_system/layout/adaptive_layout.dart (AdaptiveLayout) + breakpoints.dart — 2 breakpoint, lebih sederhana dari 3-tipe/3-heightclass lama.');
+add('core (+root)','shared/widgets/select_dialog.dart','C','Folded ke dynamic_form_field.dart\'s _DynamicFormSearchDialog privat — bukan lagi widget reusable berdiri sendiri.');
+add('core (+root)','shared/widgets/show_snack.dart','C','Tidak ada helper showSnack() bersama di v2; call site pakai ScaffoldMessenger.of(context).showSnackBar(...) langsung.');
+add('core (+root)','shared/widgets/text_input_field.dart','M','design_system/inputs/app_text_field.dart (AppTextField) — wrapper named-parameter lebih sederhana atas TextField.');
+add('core (+root)','shared/widgets/widgets.dart','M','Barrel; isi dipetakan di atas.');
+add('core (+root)','theme/app_brand_token.dart','C','Folded ke design_system/tokens/app_colors.dart + theme/app_theme.dart — split brand/surface token lama jadi satu AppColors/AppColorsDark + ColorScheme.fromSeed.');
+add('core (+root)','theme/app_colors.dart','M','design_system/tokens/app_colors.dart — palet generik starter kit sendiri; hex tidak 1:1 dari brand lama (rebrand bukan bagian migrasi ini).');
+add('core (+root)','theme/app_spacing.dart','C','design_system/tokens/app_spacing.dart — disederhanakan jadi konstanta xs/sm/md/lg/xl polos, menggantikan fungsi dual-value ScreenIntent-parameterized lama.');
+add('core (+root)','theme/app_surface_token.dart','C','Tidak ada kelas surface-token berdiri sendiri di v2; folded ke ColorScheme.fromSeed(...) Material bawaan di app_theme.dart.');
+add('core (+root)','theme/app_theme.dart','M','design_system/theme/app_theme.dart — AppTheme.light()/dark() menggantikan buildLightTheme()/buildDarkTheme().');
+add('core (+root)','theme/app_theme_extension.dart','C','Tidak ada ThemeExtension&lt;AppTheme&gt; setara; widget baca Theme.of(context).colorScheme/textTheme langsung (Material3 bawaan).');
+add('core (+root)','theme/app_typography.dart','C','design_system/tokens/app_typography.dart — satu tier TextStyle, menggantikan dua factory TextTheme paralel (data/content) lama.');
+add('core (+root)','theme/theme.dart','M','Barrel; isi dipetakan di atas.');
+add('core (+root)','usecase/usecase.dart','M','core/usecase/usecase.dart — UseCase&lt;R,Params&gt; menggantikan Usecase&lt;T,P&gt;.');
+add('core (+root)','utils/responsive_util.dart','C','design_system/layout/breakpoints.dart — kelas statis 2-breakpoint (mobile/tablet) yang lebih sederhana.');
+add('core (+root)','utils/service_locator.dart','M','apps/mobile/di/injection.dart (configureDependencies) + shared/di/register_module.dart + tiap package\'s *_module.module.dart generated — sl.registerLazySingleton manual diganti codegen @injectable/@lazySingleton.');
+add('core (+root)','utils/utils.dart','M','Barrel; isi dipetakan di atas.');
+add('core (+root)','core.dart (root)','M','Barrel; ekspor sekarang tersebar di core/design_system/shared\'s masing-masing barrel, sesuai split monorepo.');
+add('core (+root)','features.dart (root)','M','Barrel; tiap fitur lama punya barrel package sendiri, dirakit di composition root apps/mobile.');
+add('core (+root)','main.dart (root)','M','apps/mobile/main_dev.dart(+main_prod/staging) + apps/mobile/src/app.dart — setupServices()→configureDependencies(), createRoute(cubit)→getIt&lt;AppRouter&gt;().router.');
+
+// ===== about (9) =====
+add('about','about.dart','M','Barrel; padanan feature_about/lib/feature_about.dart.');
+add('about','data/datasources/about_api_service.dart','M','feature_about/data/datasources/about_remote_datasource.dart — GET /faq/get sama persis, tetap thin.');
+add('about','data/models/about_model.dart','M','feature_about/data/models/about_model.dart — @JsonKey(name:"jenis") menggantikan rename manual.');
+add('about','data/repositories/about_repo_impl.dart','M','feature_about/data/repositories/about_repository_impl.dart — cek status!=ok dan mapping datas sama.');
+add('about','domain/entities/about_entity.dart','M','feature_about/domain/entities/about.dart (freezed About) — field type/text sama, doc comment kutip entity lama langsung.');
+add('about','domain/repositories/about_repo.dart','M','feature_about/domain/repositories/about_repository.dart — kontrak getAbout() tunggal sama.');
+add('about','domain/usecases/get_about.dart','M','Inlined ke AboutCubit.getAbout() langsung — "No UseCase (§21/ADR-004) — GetAboutUsecase lama pass-through satu baris."');
+add('about','presentation/pages/about_page.dart','M','feature_about/presentation/pages/about_page.dart — direstrukturisasi: render seluruh list FAQ sendiri (dulu list ada di dashboard, halaman ini cuma render 1 item dari route extra). Perbaikan disengaja, dikutip AUDIT.md §4 caveat 1.');
+add('about','presentation/routes/about_routes.dart','M','apps/mobile/app.dart\'s GoRoute("/about"). v2 pakai satu rute list-based vs per-item /about/:type lama.');
+
+// ===== onboarding (8) =====
+add('onboarding','data/datasources/onboarding_local_service.dart','M','feature_onboarding/data/datasources/onboarding_local_datasource.dart. Koreksi tier storage tercatat: flutter_secure_storage (salah tier untuk bool non-sensitif, ARCHITECTURE.md §24) → shared_preferences.');
+add('onboarding','data/repositories/onboarding_repo_impl.dart','M','feature_onboarding/data/repositories/onboarding_repository_impl.dart — delegasi sama, kini Result-wrapped + CacheFailure.');
+add('onboarding','domain/repositories/onboarding_repo.dart','M','feature_onboarding/domain/repositories/onboarding_repository.dart — kontrak dua metode sama.');
+add('onboarding','domain/usecases/get_is_first_launch.dart','M','Inlined ke OnboardingCubit.checkStatus() langsung — pola "tanpa UseCase" sama seperti about.');
+add('onboarding','domain/usecases/set_is_first_launch.dart','M','Inlined ke OnboardingCubit.complete() langsung.');
+add('onboarding','onboarding.dart','M','Barrel; padanan feature_onboarding/lib/feature_onboarding.dart.');
+add('onboarding','presentation/pages/onboarding_page.dart','M','feature_onboarding/presentation/pages/onboarding_page.dart — carousel 4-slide sama persis, teks verbatim; aset brand disederhanakan jadi Material Icon (docs/qa/onboarding.md).');
+add('onboarding','presentation/routes/onboarding_routes.dart','M','Rute sendiri migrated (apps/mobile GoRoute "/onboarding"). TAPI auto-gating redirect (isFirstLaunch chain via /splash) TIDAK punya padanan di AppRouter._redirect — gap tercatat eksplisit di docs/qa/onboarding.md dan MIGRATION_LOG.md.');
+
+// ===== splash (3) =====
+add('splash','presentation/pages/splash_page.dart','U','Lihat panel Belum Terklasifikasi di atas.');
+add('splash','presentation/routes/splash_routes.dart','U','Lihat panel Belum Terklasifikasi di atas.');
+add('splash','splash.dart','U','Lihat panel Belum Terklasifikasi di atas.');
+
+// ===== screenshot (6) =====
+add('screenshot','data/datasources/screenshot_local_service.dart','C','Folded ke ScreenshotGatewayImpl (feature_test) — wrapper NoScreenshot.instance sama, kini digabung repo layer jadi satu gateway.');
+add('screenshot','data/repositories/screenshot_repo_impl.dart','C','Destinasi sama seperti di atas — split datasource/repo dikumpulkan jadi satu ScreenshotGatewayImpl.');
+add('screenshot','domain/repositories/screenshot_repo.dart','C','ScreenshotGateway abstract (feature_test) — kontrak disable()/enable() sama, direname.');
+add('screenshot','domain/usecases/disable_screenshot.dart','C','Folded ke ScreenshotGateway.disable(). Catatan: sl&lt;DisableScreenshotUsecase&gt;().call() ternyata di-comment-out di test_page.dart lama (finding #8) — nol call site hidup di app lama, tapi logikanya tetap dibawa dan kini benar-benar disambungkan hidup di TestCubit.');
+add('screenshot','domain/usecases/enable_screenshot.dart','C','Folded ke ScreenshotGateway.enable(), dipanggil dari TestCubit.close(). App lama punya 3 call site hidup (semua real), kini dikonsolidasi jadi 1.');
+add('screenshot','screenshot.dart','C','Barrel fitur lama; tidak ada package screenshot berdiri sendiri di v2 — semua folded ke feature_test\'s ScreenshotGateway.');
+
+// ===== notification (9) =====
+add('notification','data/datasources/notification_local_service.dart','C','Folded ke NotificationDatasource + NotificationGatewayImpl (shared) — plugin call sama, dipecah jadi datasource tipis + gateway yang memperbaiki bug hasil-permission-dibuang.');
+add('notification','data/models/notification_model.dart','C','Tidak ada kelas model di v2 — NotificationGateway.show() terima id/title/body/payload sebagai named param langsung.');
+add('notification','data/repositories/notification_repo_impl.dart','C','Folded ke NotificationGatewayImpl (shared).');
+add('notification','domain/entities/notification_entity.dart','C','Sama seperti model — tidak ada entity, param langsung ke NotificationGateway.show().');
+add('notification','domain/repositories/notification_repo.dart','C','NotificationGateway abstract (shared).');
+add('notification','domain/usecases/init_notification.dart','C','App lama panggil eksplisit di main.dart:24 (call site nyata). v2\'s NotificationDatasource.ensureInitialized() lazy-init saat pemakaian pertama — doc comment eksplisit membingkai ini sebagai perbaikan "tidak perlu diingat dijalankan saat bootstrap".');
+add('notification','domain/usecases/show_notification.dart','C','App lama panggil dari dashboard_layout.dart:97 (call site nyata). v2 panggil NotificationGateway.show() langsung dari dashboard_notification_listener.dart, tanpa UseCase.');
+add('notification','notification.dart','C','Barrel fitur lama; folded ke submodul notification di shared (diekspor via shared.dart).');
+add('notification','presentation/services/notification_router.dart','O','docs/qa/dashboard.md §5: "Tap-to-navigate deep-linking... keputusan cakupan sengaja, bukan oversight." NotificationRouter.handle(payload) lama punya hardcoded URL-domain replacement yang tidak sepenuhnya dipahami saat audit — sengaja tidak di-port. NotificationGateway.onNotificationTapped ada tapi belum ada subscriber.');
+
+// ===== form_input (10) =====
+add('form_input','data/datasources/form_input_api_service.dart','M','shared/form_input/data/datasources/form_input_remote_datasource.dart — bentuk thin GET-dan-return-raw-list sama, via core\'s ApiClient.');
+add('form_input','data/datasources/form_input_local_service.dart','D','Digrep seluruh lib/ lama: someMethod() cuma dideklarasi + didaftarkan di service_locator.dart — nol call site lain. MIGRATION_LOG.md eksplisit: "FormInputLocalService dead code, jangan di-port."');
+add('form_input','data/models/form_input_model.dart','M','shared/form_input/data/models/form_input_field_model.dart.');
+add('form_input','data/models/option_model.dart','M','shared/form_input/data/models/form_field_option_model.dart.');
+add('form_input','data/repositories/form_input_repo_impl.dart','M','shared/form_input/data/repositories/form_input_repository_impl.dart — bentuk fetch-dan-map sama.');
+add('form_input','domain/entities/form_input_entity.dart','M','shared/form_input/domain/entities/form_input_field.dart.');
+add('form_input','domain/entities/option_entity.dart','M','shared/form_input/domain/entities/form_field_option.dart (parentIds→cascading_options.dart).');
+add('form_input','domain/repositories/form_input_repo.dart','M','shared/form_input/domain/repositories/form_input_repository.dart.');
+add('form_input','domain/usecases/get_forms.dart','M','Inlined ke FormInputRepository.getForm(endpoint), dipanggil langsung dari payment_cubit.dart & register_cubit.dart — sama seperti dua konsumen nyata app lama.');
+add('form_input','form_input.dart','C','Seluruh fitur lama dipromosikan & dipecah: domain+data→shared/form_input/, plus widget baru DynamicFormField (design_system) — "generic by design from day one" (tabel Shared Foundations).');
+
+// ===== auth (32) =====
+add('auth','auth.dart','M','Barrel; padanan authentication/lib/authentication.dart.');
+add('auth','data/datasources/auth_api_service.dart','M','authentication/data/datasources/auth_remote_datasource.dart (sendOtp/verifyOtp/getProfile/extractKtp/submitRegistration). refreshToken() TIDAK dibawa (lihat gap refresh_token.dart).');
+add('auth','data/datasources/auth_local_service.dart','M','authentication/data/datasources/secure_token_storage.dart — diperluas dari satu key access_token jadi token+cached user+SessionProfile, prefixed keys (ADR-011).');
+add('auth','data/models/user_model.dart','C','Dipecah jadi user_profile_model.dart yang menggerakkan User DAN SessionProfile — keputusan arsitektur disengaja (docs/qa/account.md) supaya nik tidak pernah sampai CrashReporter.setUserId.');
+add('auth','data/repositories/auth_repo_impl.dart','M','authentication/data/repositories/auth_repository_impl.dart. Catatan: extractKTP() versi lama sendiri sudah dead code — v2 memperbaiki ini, AuthRepositoryImpl.extractKtp() kini jadi jalur panggilan nyata.');
+add('auth','domain/entities/user_entity.dart','C','Dipecah jadi User (id/email/role/isRegistered) + session_profile.dart (avatar/name/nik) — split disengaja supaya nik tidak pernah sampai CrashReporter (account.md). phoneNumber/address/dob tidak dibawa ke kedua entity baru.');
+add('auth','domain/repositories/auth_repo.dart','M','authentication/domain/repositories/auth_repository.dart.');
+add('auth','domain/usecases/clear_token.dart','M','SecureTokenStorage.clear(), dipanggil dari AuthRepositoryImpl.logout()/AuthCubit.logout(); wrapper usecase dihapus.');
+add('auth','domain/usecases/do_login.dart','M','Meski namanya "login", file lama sebenarnya panggil /api/auth/login-otp → jadi VerifyOtpUseCase + AuthRepositoryImpl.verifyOtp().');
+add('auth','domain/usecases/do_register.dart','M','Panggilan API→AuthRepository.submitRegistration(); validasi yang dulu di RegisterStateCubit.doRegister() pindah ke CompleteRegistrationUseCase (§21).');
+add('auth','domain/usecases/extract_ktp.dart','M','AuthRepository.extractKtp(), dipanggil langsung dari RegisterCubit.scanKtp(). File lama justru bypass AuthRepository.extractKTP() (panggil AuthApiService langsung) — v2 memperbaiki indirection ini.');
+add('auth','domain/usecases/get_profile.dart','M','AuthRemoteDataSource.getProfile(), dipakai di AuthRepositoryImpl.verifyOtp() dan refreshProfile().');
+add('auth','domain/usecases/get_token.dart','M','AuthCubit._restoreCachedSession() + SecureTokenStorage.getCachedUser() — kini cek User cache, bukan raw token string.');
+add('auth','domain/usecases/refresh_token.dart','U','Lihat panel Belum Terklasifikasi di atas.');
+add('auth','domain/usecases/save_token.dart','M','SecureTokenStorage.saveAccessToken()/saveTokens(), dipanggil inline dari AuthRepositoryImpl.verifyOtp()/login().');
+add('auth','domain/usecases/send_otp.dart','M','authentication\'s SendOtpUseCase + AuthRepository.sendOtp().');
+add('auth','presentation/blocs/camera/camera_state.dart','M','authentication/presentation/cubit/selfie_camera_state.dart (SelfieCameraState) — doc comment: "Mirrors CameraState lama."');
+add('auth','presentation/blocs/camera/camera_state_cubit.dart','M','selfie_camera_cubit.dart (SelfieCameraCubit); initCamera/takePhoto/resumePreview/close 1:1, kini via CameraGateway bukan CameraRepository mentah.');
+add('auth','presentation/blocs/register/register_state.dart','M','authentication/presentation/cubit/register_state.dart.');
+add('auth','presentation/blocs/register/register_state_cubit.dart','M','register_cubit.dart (RegisterCubit); validasi dipecah ke CompleteRegistrationUseCase (§21).');
+add('auth','presentation/pages/login_page.dart','C','Ini sebenarnya layar phone-entry alur OTP, bukan email/password. Folded bersama otp_page.dart jadi otp_login_page.dart. Dikonfirmasi via git log: LoginPage baru (email/password) mendahului migrasi ini, tidak berasal darinya.');
+add('auth','presentation/pages/otp_page.dart','C','Layar verify-OTP → folded ke otp_login_page.dart. Timer countdown/expiry sengaja TIDAK direproduksi (auth_login.md, "known tracked simplification").');
+add('auth','presentation/pages/register_page.dart','M','authentication/presentation/pages/register_page.dart.');
+add('auth','presentation/routes/auth_routes.dart','M','/login, /register GoRoute kini di apps/mobile/app.dart (ADR-010). Rute /otp sengaja dihapus — OTP dicapai via Navigator.push untuk hindari bug redirect-loop di AppRouter._redirect\'s exact-match "/login".');
+add('auth','presentation/widgets/back_button.dart','M','Perilaku di-inline ke PopScope + AppDialog.confirm di register_page.dart (keputusan #4 register.md: pakai AppDialog.confirm yang sudah ada).');
+add('auth','presentation/widgets/camera_field.dart','M','Jadi widget privat _CameraOrPreview di register_page.dart.');
+add('auth','presentation/widgets/form_view.dart','M','Jadi RegistrationFormView di register_page.dart.');
+add('auth','presentation/widgets/input_data_view.dart','M','Logika switching folded ke switch atas RegisterStatus di RegisterView; tidak lagi kelas widget terpisah.');
+add('auth','presentation/widgets/password_field.dart','D','Digrep "PasswordField(" di seluruh lib/ lama: hanya deklarasi konstruktor sendiri. Nol instantiasi — login_page.dart lama pakai TextInputField langsung.');
+add('auth','presentation/widgets/selfie_rule.dart','M','Konten (Kacamata/Topi/Masker) direproduksi sebagai Chip widget polos di SelfieCaptureView, bukan lagi komponen reusable.');
+add('auth','presentation/widgets/selfie_view.dart','M','Jadi SelfieCaptureView/_CameraOrPreview/_SelfieActionRow di register_page.dart.');
+add('auth','presentation/widgets/status_view.dart','M','Jadi widget privat _StatusMessage di register_page.dart.');
+
+// ===== camera (17) =====
+add('camera','camera.dart','C','Isi barrel disebar: bagian non-deteksi → shared (CameraGateway dkk), bagian face-detection/match → feature_test\'s proctoring slice.');
+add('camera','data/configs/camera_config.dart','C','shared/camera/domain/entities/camera_config.dart, folded ke bundle CameraGateway. Flag streamImage dihapus.');
+add('camera','data/datasources/camera_datasource.dart','C','shared/camera/data/datasources/camera_datasource.dart, folded ke CameraGateway. Bug lens-fallback (orElse: cameras.first) diperbaiki satu layer di atas di CameraGatewayImpl (permanent finding #7); kemampuan streaming dihapus.');
+add('camera','data/datasources/face_detector_datasource.dart','M','feature_test/data/datasources/face_detector_datasource.dart — nyaris identik, doc comment: "mirrors FaceDetectorDatasourceImpl lama persis."');
+add('camera','data/datasources/face_match_datasource.dart','M','feature_test/data/datasources/face_match_datasource.dart — dikonfirmasi implementasi hidup (vs. MatchFaceUsecase test yang dead code).');
+add('camera','data/models/face_match_result_model.dart','M','feature_test/data/models/face_match_result_model.dart.');
+add('camera','data/models/face_result_model.dart','C','Logika factory fromFaces() di-inline langsung ke ProctoringGatewayImpl.startDetection()\'s switch(count); enum AttentionStatus pindah ke attention_status.dart.');
+add('camera','data/repositories/camera_repo_impl.dart','C','Dipecah: jalur capture/initialize/dispose/controller → CameraGatewayImpl (shared); jalur streaming face-detection+match hidup (startDetection()/_startMatch()) → ProctoringGatewayImpl (feature_test). Satu file lama, dua destinasi baru — keduanya dikonfirmasi ada dan dipakai.');
+add('camera','domain/entities/face_match_result_entity.dart','M','feature_test/domain/entities/face_match_result.dart (FaceMatchResult/FaceMatchStatus).');
+add('camera','domain/entities/face_result_entity.dart','M','feature_test/domain/entities/attention_status.dart (AttentionStatus), minus nilai noCamera — ketidaktersediaan kamera kini CameraUnavailableEvent/CameraFailure sendiri (perbaikan disengaja).');
+add('camera','domain/events/face_event.dart','M','feature_test/domain/entities/proctoring_event.dart (ProctoringEvent sealed class).');
+add('camera','domain/repositories/camera_repo.dart','C','Dipecah: shared/camera/domain/repositories/camera_gateway.dart (CameraGateway) + feature_test/domain/repositories/proctoring_gateway.dart (ProctoringGateway).');
+add('camera','domain/usecases/capture_image.dart','C','Folded ke CameraGateway.captureImage(), dipanggil langsung dari SelfieCameraCubit.takePhoto(); wrapper usecase dihapus.');
+add('camera','domain/usecases/dispose.dart','C','Folded ke CameraGateway.dispose(), dipanggil langsung dari SelfieCameraCubit.close()/ProctoringGatewayImpl.stopDetection().');
+add('camera','domain/usecases/initialize.dart','C','Folded ke CameraGateway.initialize(), dipanggil langsung dari SelfieCameraCubit.initCamera()/ProctoringGatewayImpl.startDetection().');
+add('camera','domain/usecases/start_detection.dart','M','ProctoringGateway.startDetection(), dipanggil langsung dari ProctoringCubit.start(); wrapper usecase dihapus.');
+add('camera','domain/usecases/stop_detection.dart','M','ProctoringGateway.stopDetection(), dipanggil langsung dari ProctoringCubit._stop().');
+
+// ===== counseling (19) =====
+add('counseling','counseling.dart','M','Barrel; padanan feature_counseling/lib/feature_counseling.dart.');
+add('counseling','data/datasources/counseling_api_service.dart','C','Dipecah jadi counseling_remote_datasource.dart (getSessions, /chat/list) dan chat_remote_datasource.dart (getMessages /chat/detail-conversation, sendMessage /chat/send) — transport FormData sama dipertahankan.');
+add('counseling','data/datasources/counseling_local_service.dart','D','Digrep lib/ lama: CounselingLocalService(Impl) hanya muncul di deklarasi + registrasi DI; someMethod() (body kosong) nol call site.');
+add('counseling','data/models/chat_model.dart','M','feature_counseling/data/models/chat_message_model.dart — 3 field sama (message/sender_type/created_at), doc comment kutip ChatModel.fromJson lama.');
+add('counseling','data/models/counseling_model.dart','M','feature_counseling/data/models/counseling_session_model.dart — rename field identik.');
+add('counseling','data/repositories/counseling_repo_impl.dart','C','Dipecah jadi chat_repository_impl.dart (getChat/sendMessage) + counseling_repository_impl.dart (getSessions), keduanya pertahankan cek envelope {status,message,data} sama.');
+add('counseling','domain/entities/chat_entity.dart','M','feature_counseling/domain/entities/chat_message.dart.');
+add('counseling','domain/entities/counseling_entity.dart','M','feature_counseling/domain/entities/counseling_session.dart.');
+add('counseling','domain/repositories/counseling_repo.dart','C','Dipecah jadi domain/repositories/chat_repository.dart + counseling_repository.dart.');
+add('counseling','domain/usecases/get_chat.dart','C','Wrapper UseCase dihapus (§21/ADR-004). ChatCubit.getMessages() panggil ChatRepository.getMessages() langsung.');
+add('counseling','domain/usecases/get_counseling.dart','C','CounselingCubit.getSessions() panggil CounselingRepository.getSessions() langsung, tanpa UseCase.');
+add('counseling','domain/usecases/send_message.dart','C','ChatCubit.sendMessage() panggil ChatRepository.sendMessage() langsung, tanpa UseCase.');
+add('counseling','presentation/blocs/chat/chat_state.dart','M','feature_counseling/presentation/cubit/chat_state.dart — ChatStatus.ended lama folded jadi field bool ChatLoaded.ended.');
+add('counseling','presentation/blocs/chat/chat_state_cubit.dart','M','feature_counseling/presentation/cubit/chat_cubit.dart — logika getMessages/sendMessage/optimistic-echo/listener realtime semua ada, kini via SocketGateway bersama.');
+add('counseling','presentation/blocs/counseling/counseling_state.dart','M','feature_counseling/presentation/cubit/counseling_state.dart.');
+add('counseling','presentation/blocs/counseling/counseling_state_cubit.dart','M','feature_counseling/presentation/cubit/counseling_cubit.dart.');
+add('counseling','presentation/pages/chat_page.dart','M','feature_counseling/presentation/pages/chat_page.dart.');
+add('counseling','presentation/pages/counseling_page.dart','M','feature_counseling/presentation/pages/counseling_list_page.dart.');
+add('counseling','presentation/routes/counseling_routes.dart','M','apps/mobile/app.dart\'s _routes: GoRoute("/counseling"), GoRoute("/chat/:code").');
+
+// ===== dashboard (13) =====
+add('dashboard','dashboard.dart','C','Barrel terpecah ke feature_profile, feature_history, feature_home, shared (AppShell/SocketGateway/NotificationGateway), dan apps/mobile (dashboard_notification_listener.dart + app.dart) — lihat MIGRATION_LOG.md dashboard row (TAHAP 1-4).');
+add('dashboard','presentation/blocs/about/about_state.dart','C','Tanggung jawab fetch-seluruh-list-about pindah ke feature_about\'s AboutCubit/AboutState, yang kini render seluruh list FAQ sendiri alih-alih dashboard fetch untuk gating 3 kartu menu.');
+add('dashboard','presentation/blocs/about/about_state_cubit.dart','C','Destinasi sama di atas; tombol FAQ di feature_home\'s HomeView kini cuma context.push("/about") tanpa pre-fetch/gating.');
+add('dashboard','presentation/blocs/nav/nav_cubit.dart','C','State index tab dihapus; AppShell (shared/router/app_shell.dart) turunkan currentIndex langsung dari GoRouterState.of(context).matchedLocation, bukan Cubit&lt;int&gt; terpisah.');
+add('dashboard','presentation/blocs/voucher/voucher_state.dart','M','feature_history/presentation/cubit/history_state.dart — endpoint /tes/list-voucher sama dikonfirmasi (GetVouchersUsecase→PaymentApiService.getVouchers()→/api/tes/list-voucher).');
+add('dashboard','presentation/blocs/voucher/voucher_state_cubit.dart','M','feature_history/presentation/cubit/history_cubit.dart — docs/qa/history.md header eksplisit kutip mapping ini.');
+add('dashboard','presentation/config/home_menu_config.dart','C','buildMenus()\'s logika onTap (Tes Psikologi w/ gate isRegistered, Konseling, FAQ/Kebijakan/Tentang) folded ke IconButton AppBar hardcoded di feature_home\'s HomeView. Tombol Payment bawa gate !user.isRegistered identik.');
+add('dashboard','presentation/pages/account_page.dart','M','feature_profile/presentation/pages/profile_page.dart — permanent finding #2 + docs/qa/account.md. Read-only avatar/nama/nik+logout dikonfirmasi 1:1, "Ganti Password" dead code benar tidak di-port.');
+add('dashboard','presentation/pages/history_page.dart','M','feature_history/presentation/pages/history_page.dart — docs/qa/history.md header konfirmasi mapping ini.');
+add('dashboard','presentation/pages/home_page.dart','U','Lihat panel Belum Terklasifikasi di atas — temuan terpenting audit ini.');
+add('dashboard','presentation/routes/dashboard_routes.dart','M','apps/mobile/app.dart\'s _shellRoutes/_shellDestinations, disambungkan ke shared\'s AppRouter.shellRoutes/AppShell (TAHAP 3).');
+add('dashboard','presentation/widgets/custom_bottom_nav_bar.dart','C','shared/router/app_shell.dart\'s AppShell (Material NavigationBar, list AppShellDestination generik) menggantikan trio CustomBottomNavBar+MenuItem+NavCubit.');
+add('dashboard','presentation/widgets/dashboard_layout.dart','C','Dipecah dua: Scaffold bottom-nav → AppShell (TAHAP 3); _handleConfirm/_handleSent/_handleEnded → apps/mobile\'s DashboardNotificationListener (TAHAP 4), doc comment eksplisit "Ported from DashboardLayout". Kebocoran konten notifikasi diperbaiki (finding #6).');
+
+// ===== websocket (14) =====
+add('websocket','data/channel_manager/channel_config.dart','C','shared/realtime/socket_gateway.dart\'s subscribe(String) terima nama polos; distinction ChannelType public/private/presence dihapus.');
+add('websocket','data/channel_manager/channel_manager.dart','C','Folded ke socket_gateway_impl.dart\'s map _channels/_channelSubscriptions inline — tidak ada kelas ChannelManager terpisah di v2.');
+add('websocket','data/channel_manager/managed_channel.dart','C','Destinasi sama di atas; tracking enum ChannelState dihapus.');
+add('websocket','data/datasources/websocket_datasource.dart','C','shared/realtime/socket_gateway_impl.dart (SocketGatewayImpl) — connect/disconnect/subscribe/unsubscribe/stream semua satu kelas; split datasource+repository dihapus.');
+add('websocket','data/models/socket_event_model.dart','C','shared/realtime/socket_event.dart\'s SocketEvent tunggal — split model+entity dihapus, tanpa fromJson/toJson terpisah.');
+add('websocket','data/repositories/websocket_repo_impl.dart','C','Folded langsung ke socket_gateway_impl.dart — SocketGatewayImpl ADALAH datasource+repository lama digabung.');
+add('websocket','domain/entities/socket_event_entity.dart','C','shared/realtime/socket_event.dart (kelas target sama dengan socket_event_model.dart).');
+add('websocket','domain/repositories/websocket_repo.dart','C','shared/realtime/socket_gateway.dart\'s SocketGateway abstract — bentuk sama minus convenience filter on(eventType).');
+add('websocket','domain/usecases/connect.dart','C','Folded ke SocketGatewayImpl\'s _connect() privat, dipicu otomatis di dalam subscribe(). Lihat catatan tambahan panel di atas soal call-site connect-on-login.');
+add('websocket','domain/usecases/disconnect.dart','C','SocketGateway.disconnect() ada di interface tapi tidak pernah dipanggil di v2 (digrep, nol call site) — digantikan desain auto-teardown SocketGatewayImpl.unsubscribe() saat channel terakhir dihapus.');
+add('websocket','domain/usecases/listen_event.dart','C','Konsumen kini listen SocketGateway.events langsung dan switch atas event.type sendiri (chat_cubit.dart, dashboard_notification_listener.dart).');
+add('websocket','domain/usecases/subscribe.dart','C','SocketGateway.subscribe(String) dipanggil langsung oleh Cubit, tanpa wrapper UseCase.');
+add('websocket','domain/usecases/unsubscribe.dart','C','SocketGateway.unsubscribe(String) dipanggil langsung, tanpa wrapper UseCase.');
+add('websocket','websocket.dart','C','Seluruh folder diekstrak ke shared/realtime/ — "Diekstrak dari SocketGateway terpisah-duplikat feature_counseling/feature_payment jadi satu gateway app-wide."');
+
+// ===== payment (33) =====
+add('payment','data/datasources/payment_api_service.dart','M','6 dari 7 endpoint→feature_payment/data/datasources/payment_remote_datasource.dart. Endpoint ke-7, getVouchers, dialihkan ke feature_history\'s history_remote_datasource.dart (endpoint /tes/list-voucher sama) — doc comment eksplisit menyebut ini.');
+add('payment','data/datasources/payment_local_service.dart','M','feature_payment/data/datasources/payment_local_datasource.dart. Bukan port apa adanya: key storage bare "psychologist" diganti prefixed com.akujamin.mobile.payment_psychologist_id — perbaikan kelas ADR-011.');
+add('payment','data/models/payment_model.dart','M','feature_payment/data/models/payment_account_detail_model.dart. bankName/bankAccount/price/expiredAt dibawa; status/proofOfPayment/paidDate pindah ke registration_status_model.dart (split entity).');
+add('payment','data/models/regis_model.dart','M','feature_payment/data/models/registration_status_model.dart (RegistrationStatusModel.fromJson) — doc comment eksplisit kutip PaymentRepoImpl.checkVoucher() lama.');
+add('payment','data/models/voucher_model.dart','M','feature_history/data/models/test_history_item_model.dart — doc comment-nya eksplisit kutip file lama ini persis untuk konfirmasi rename field. Destinasi package beda dari file payment lain di folder ini.');
+add('payment','data/repositories/payment_repo_impl.dart','M','feature_payment/data/repositories/payment_repository_impl.dart.');
+add('payment','domain/entities/payment_entity.dart','M','feature_payment/domain/entities/payment_account_detail.dart (bankName/bankAccount/price/expiredAt).');
+add('payment','domain/entities/regis_entity.dart','M','feature_payment/domain/entities/registration_status.dart, diperhalus per MIGRATION_LOG "✓ Resolved — payment status codes" (tambah StatusVoucher typed/isPaid/proofOfPayment/paidDate).');
+add('payment','domain/entities/voucher_entity.dart','M','feature_history/domain/entities/test_history_item.dart, sengaja direname dari "Voucher" — doc comment kutip AUDIT.md §6 "voucher trap".');
+add('payment','domain/repositories/payment_repo.dart','M','feature_payment/domain/repositories/payment_repository.dart.');
+add('payment','domain/usecases/cancel_voucher.dart','M','Folded ke PaymentRepository.cancelVoucher()+PaymentCubit.cancelVoucher() — tanpa kelas UseCase, docs/qa/payment.md keputusan (f) "No UseCase".');
+add('payment','domain/usecases/check_payment.dart','M','Folded ke PaymentRepository.checkPayment()+PaymentCubit.checkPayment().');
+add('payment','domain/usecases/check_voucher.dart','M','Folded ke PaymentRepository.checkVoucher()+PaymentCubit._checkVoucher().');
+add('payment','domain/usecases/clear_psychologist_id.dart','M','Folded ke PaymentRepository.clearPsychologistId(), dipanggil dari PaymentCubit.disconnectSocket().');
+add('payment','domain/usecases/create_voucher.dart','M','Folded ke PaymentRepository.createVoucher()+PaymentCubit._createVoucher().');
+add('payment','domain/usecases/get_payment.dart','M','Folded ke PaymentRepository.getPaymentAccount()+PaymentCubit._loadPaymentAccount().');
+add('payment','domain/usecases/get_psychologist_id.dart','M','Folded ke PaymentRepository.getPsychologistId(), dipanggil dari PaymentCubit.disconnectSocket().');
+add('payment','domain/usecases/get_vouchers.dart','M','MIGRATION_LOG.md: "getVouchers/VoucherEntity dikonfirmasi redundan dengan list-voucher feature_history, tidak dimigrasikan di sini." Baca-nya landed di feature_history\'s history_repository.dart\'s getHistory(), endpoint sama, tanpa UseCase terpisah.');
+add('payment','domain/usecases/save_psychologist_id.dart','M','Folded ke PaymentRepository.savePsychologistId(), dipanggil dari PaymentCubit._connectSocket().');
+add('payment','domain/usecases/send_payment.dart','M','Folded ke PaymentRepository.sendPayment()+PaymentCubit.submitPayment().');
+add('payment','payment.dart','M','Barrel; padanan feature_payment/lib/feature_payment.dart, ekspor lebih sedikit mencerminkan arsitektur tanpa-UseCase.');
+add('payment','presentation/blocs/payment_state.dart','M','feature_payment/presentation/cubit/payment_state.dart. Enum PaymentStatus→PaymentStep; status code diperhalus per desain StatusVoucher.');
+add('payment','presentation/blocs/payment_state_cubit.dart','M','feature_payment/presentation/cubit/payment_cubit.dart. 5 koreksi disetujui didokumentasikan docs/qa/payment.md (clear-on-parent-change, split StatusVoucher, disconnect-selalu-unsubscribe, prefix key ADR-011, cleanup proof-image).');
+add('payment','presentation/pages/payment_page.dart','M','feature_payment/presentation/pages/payment_page.dart, dipecah PaymentPage/PaymentView untuk testability; step-header UI diimplementasi ulang inline sebagai _StepHeader/_StepDot.');
+add('payment','presentation/routes/payment_routes.dart','M','apps/mobile/app.dart\'s GoRoute("/payment") — registrasi rute terpusat di composition root (konvensi ADR-010).');
+add('payment','presentation/widgets/confirmation_loading.dart','U','Lihat panel Belum Terklasifikasi di atas.');
+add('payment','presentation/widgets/confirmation_view.dart','M','feature_payment/presentation/widgets/confirmation_view.dart — perilaku timeout 5-menit/backToDemography dipertahankan persis; child ConfirmationLoading diganti CircularProgressIndicator+Text polos inline.');
+add('payment','presentation/widgets/demography_view.dart','M','feature_payment/presentation/widgets/demography_view.dart, kini pakai DynamicFormField/filterCascadingOptions/clearDependentFields (fondasi form_input + perbaikan cascading-select).');
+add('payment','presentation/widgets/payment_method.dart','D','Digrep "PaymentMethod" di seluruh lib/ lama: hanya match deklarasi kelasnya sendiri; PaymentMethodView (kelas beda, nyata) yang benar-benar dipakai di payment_page.dart:190.');
+add('payment','presentation/widgets/payment_method_view.dart','M','feature_payment/presentation/widgets/payment_method_view.dart, termasuk upload bukti kamera+galeri, imageQuality:70, dan perbaikan cleanup pasca-upload.');
+add('payment','presentation/widgets/review_view.dart','M','feature_payment/presentation/widgets/review_view.dart (isSuccess→isPaid); child ConfirmationLoading-nya diganti widget _PaymentPending polos inline.');
+add('payment','presentation/widgets/step_indicator.dart','M','Call site nyata dikonfirmasi (4 titik). Folded inline jadi _StepDot/_StepHeader privat di payment_page.dart — bukan lagi file widget berdiri sendiri, tapi konsep progress-step tetap dibawa.');
+add('payment','presentation/widgets/wave_glow_loader.dart','U','Lihat panel Belum Terklasifikasi di atas.');
+
+// ===== test (42) =====
+add('test','data/datasources/test_api_service.dart','M','feature_test/data/datasources/test_remote_datasource.dart. getTests/saveTestAnswer di-port dengan endpoint/body sama; method matchFace dihapus (dead code).');
+add('test','data/datasources/test_local_service.dart','D','File lama adalah stub (someMethod() tanpa isi). Digrep lib/: hanya deklarasi + registrasi DI — nol call site nyata. Cocok docs/qa/test.md §2 ("tidak ada yang di-persist di fitur ini").');
+add('test','data/mapper/question_mapper.dart','C','Folded ke TestRepositoryImpl._buildAnswerBody() — field/bentuk sama, pindah dari mapper statis presentation-layer jadi wire-format encoding milik repository sendiri. MIGRATION_LOG: "layering lebih baik dari QuestionMapper lama."');
+add('test','data/models/answer_model.dart','M','feature_test/data/models/answer_model.dart — mapping field jawaban_id/jawaban sama, kini freezed model + .toEntity().');
+add('test','data/models/intro_model.dart','M','feature_test/data/models/intro_model.dart — mapping deskripsi/image sama.');
+add('test','data/models/question_model.dart','M','feature_test/data/models/question_model.dart — field qid/id/show_question/jawaban/sub_items sama; tambah guard asKeyedMap() untuk kuirk Laravel empty-array/object.');
+add('test','data/models/section_model.dart','M','feature_test/data/models/section_model.dart — mapping soal/intro/instruksi sama.');
+add('test','data/models/sub_item_model.dart','M','feature_test/data/models/sub_item_model.dart — mapping sub_id/jawaban sama.');
+add('test','data/models/test_model.dart','M','feature_test/data/models/test_model.dart — mapping bab/intro/instruksi sama, deteksi TestType berbasis nama "Pengetahuan" dipertahankan.');
+add('test','data/repositories/test_repo_impl.dart','M','feature_test/data/repositories/test_repository_impl.dart — getTests/saveTestAnswer di-port (handling envelope status/message identik); method matchFace dihapus (dead code).');
+add('test','domain/entities/answer_entity.dart','M','feature_test/domain/entities/answer_entity.dart.');
+add('test','domain/entities/intro_entity.dart','M','feature_test/domain/entities/intro_entity.dart.');
+add('test','domain/entities/question_entity.dart','M','feature_test/domain/entities/question_entity.dart.');
+add('test','domain/entities/section_entity.dart','M','feature_test/domain/entities/section_entity.dart.');
+add('test','domain/entities/sub_item_entity.dart','M','feature_test/domain/entities/sub_item_entity.dart.');
+add('test','domain/entities/test_entity.dart','M','feature_test/domain/entities/test_entity.dart (enum TestType pindah ke file sendiri, test_type.dart, package sama).');
+add('test','domain/repositories/test_repo.dart','M','feature_test/domain/repositories/test_repository.dart — signature getTests/saveTestAnswer dibawa (param kini terstruktur, bukan string-encoded); matchFace dihapus.');
+add('test','domain/usecases/get_tests.dart','C','Dihapus sebagai layer UseCase per keputusan "No UseCase" (pass-through tipis); logikanya kini dipanggil langsung dari TestCubit.getTests().');
+add('test','domain/usecases/match_face.dart','D','Digrep MatchFaceUsecase di seluruh lib/ lama: hanya deklarasi kelas + registrasi DI — nol call site presentation layer manapun (baik test maupun camera). Jalur face-match hidup yang sebenarnya (camera_repo_impl.dart\'s _startMatch(), in-stream) sama sekali berbeda, migrated sebagai FaceMatchDatasource/ProctoringGatewayImpl.');
+add('test','domain/usecases/save_test_answer.dart','C','Perlakuan sama seperti get_tests.dart: pass-through dihapus, logika kini TestCubit.nextStep()→TestRepository.saveTestAnswer() langsung, plus layer validasi kedua baru (TestCubit menolak panggil repo tanpa jawaban terpilih) yang tidak ada di UseCase lama.');
+add('test','presentation/blocs/face_detector/face_detector_state.dart','M','feature_test/presentation/cubit/proctoring_state.dart (FaceDetectorState→ProctoringState, kini sealed freezed class dengan tambahan varian cameraUnavailable, finding #7).');
+add('test','presentation/blocs/face_detector/face_detector_state_cubit.dart','M','feature_test/presentation/cubit/proctoring_cubit.dart (FaceDetectorStateCubit→ProctoringCubit); logika grace-period(2s)/violation-threshold(10s) sama.');
+add('test','presentation/blocs/test/question_step.dart','M','feature_test/domain/entities/question_step.dart — field dan getter key sama, pindah dari presentation ke domain layer.');
+add('test','presentation/blocs/test/test_state.dart','M','feature_test/presentation/cubit/test_state.dart — enum status, field, helper currentStep/findTest/findSection dipertahankan.');
+add('test','presentation/blocs/test/test_state_cubit.dart','M','feature_test/presentation/cubit/test_cubit.dart (TestStateCubit→TestCubit); alur getTests/selectAnswer/nextStep/closePopup/dismissIntro/dismissInstruction/_buildStepsForTests sama, plus perbaikan validasi cubit-level dan lifecycle screenshot nyata (finding #8) ditambahkan di constructor/close().');
+add('test','presentation/controllers/audio_player_controller.dart','M','feature_test/presentation/controllers/audio_player_controller.dart — wrapper just_audio nyaris identik.');
+add('test','presentation/pages/certificate_page.dart','M','feature_history/presentation/pages/certificate_page.dart — BUKAN feature_test, dikonfirmasi doc comment file baru + docs/qa/history.md. Library PDF diganti syncfusion_flutter_pdfviewer→pdfx (alasan lisensi).');
+add('test','presentation/pages/result_page.dart','M','feature_test/presentation/pages/result_page.dart — copy statis "tes selesai" dan perilaku sama, tanpa cubit di kedua versi.');
+add('test','presentation/pages/test_page.dart','M','feature_test/presentation/pages/test_page.dart (TestPage/TestView/_TestBody) — setup provider, switch efek samping (error/done/popup), percabangan intro/instruksi/soal sama; juga menyerap tanggung jawab test_content.dart & test_header.dart lama serta perbaikan nyata finding #8.');
+add('test','presentation/routes/test_routes.dart','C','Pola per-fitur List&lt;RouteBase&gt; diganti list datar _routes tunggal di apps/mobile/app.dart (/test/:voucher, /result, /certificate), sesuai pola ADR-010. Panggilan DoubleBackToExitWrapper.onBack ke EnableScreenshotUsecase hilang, digantikan lifecycle constructor/close() TestCubit (finding #8).');
+add('test','presentation/widgets/answer_option.dart','M','feature_test/presentation/widgets/answer_option.dart — bentuk tap-target selected/unselected sama, diberi gaya token design_system.');
+add('test','presentation/widgets/audio_test.dart','M','feature_test/presentation/widgets/audio_question_player.dart (AudioTest→AudioQuestionPlayer) — komposisi play/pause/seek-bar/TimeIndicator sama.');
+add('test','presentation/widgets/instruction_view.dart','C','Folded, bersama intro_view.dart dan test_info_container.dart, jadi satu widget TestInfoView bersama, dipanggil langsung dari TestPage\'s _TestBody._buildInstruction().');
+add('test','presentation/widgets/intro_view.dart','C','Konsolidasi sama seperti instruction_view.dart — folded ke TestInfoView, dipanggil dari _TestBody._buildIntro(); v2 juga perbaiki bug mismatch title/content-precedence pasangan IntroView/InstructionView lama.');
+add('test','presentation/widgets/question_view.dart','M','feature_test/presentation/widgets/question_view.dart — komposisi soal/media/opsi-jawaban/tombol-next sama; tambah perbaikan render text sub-item (app lama fetch tapi tidak pernah tampilkan).');
+add('test','presentation/widgets/test_content.dart','C','Komposisinya (header+status wajah+question view+violation overlay) folded langsung ke TestPage\'s TestView/_TestBody — tidak ada widget TestContent berdiri sendiri lagi. Lihat catatan tambahan panel di atas soal BlinkingFaceStatus.');
+add('test','presentation/widgets/test_header.dart','M','feature_test/presentation/widgets/test_progress_header.dart (TestHeader→TestProgressHeader) — komposisi nama-section/"Soal N dari M"/progress-bar sama. Tombol back + panggilan EnableScreenshotUsecase-nya dihapus dari widget ini spesifik, disentralkan ke TestCubit.close() (finding #8).');
+add('test','presentation/widgets/test_info_container.dart','C','Shell generik judul/gambar/konten-markdown/tombol-next-nya jadi TestInfoView — titik konsolidasi sama seperti instruction_view.dart/intro_view.dart di atas.');
+add('test','presentation/widgets/time_indicator.dart','M','feature_test/presentation/widgets/time_indicator.dart — format posisi playback position/duration sama, dikonfirmasi tetap terbatas ke posisi playback per-klip, bukan timer ujian.');
+add('test','presentation/widgets/video_test.dart','M','feature_test/presentation/widgets/video_question_player.dart (VideoTest→VideoQuestionPlayer) — komposisi controller video_player/progress-indicator sama.');
+add('test','presentation/widgets/violation_overlay.dart','M','feature_test/presentation/widgets/violation_overlay.dart — pola overlay full-block sama per AttentionStatus; kini baca ProctoringCubit langsung (bukan lewat TestState) + tambah cabang cameraUnavailable (finding #7).');
+add('test','test.dart','M','feature_test/lib/feature_test.dart — peran barrel sama, mengekspor permukaan publik data/domain/presentation package; sebagian widget internal (TestInfoView/TestProgressHeader/QuestionView) sengaja tidak diekspor untuk testability langsung.');
+
+const CAT_LABEL={M:'migrated',C:'consolidated',D:'dead code',O:'out of scope',U:'gap'};
+const root=document.getElementById('table-root');
+const folders=[...new Set(ROWS.map(r=>r.folder))];
+let activeFilter='all';
+let query='';
+
+function renderStats(){
+  const counts={M:0,C:0,D:0,O:0,U:0};
+  ROWS.forEach(r=>counts[r.cat]++);
+  const el=document.getElementById('stats');
+  el.innerHTML=
+    '<div class="stat tot"><div class="n">'+ROWS.length+'</div><div class="l">total file</div></div>'+
+    '<div class="stat cm"><div class="n">'+counts.M+'</div><div class="l">migrated</div></div>'+
+    '<div class="stat cc"><div class="n">'+counts.C+'</div><div class="l">consolidated</div></div>'+
+    '<div class="stat cd"><div class="n">'+counts.D+'</div><div class="l">dead code</div></div>'+
+    '<div class="stat co"><div class="n">'+counts.O+'</div><div class="l">out of scope</div></div>'+
+    '<div class="stat cu"><div class="n">'+counts.U+'</div><div class="l">gap</div></div>';
+  Object.keys(counts).forEach(k=>{document.getElementById('cnt-'+k).textContent='('+counts[k]+')';});
+  document.getElementById('cnt-all').textContent='('+ROWS.length+')';
+}
+
+function escapeHtml(s){return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+
+function renderTable(){
+  const q=query.trim().toLowerCase();
+  let shown=0;
+  let html='';
+  folders.forEach(folder=>{
+    const rows=ROWS.filter(r=>r.folder===folder && (activeFilter==='all'||r.cat===activeFilter) &&
+      (q==='' || r.file.toLowerCase().includes(q) || r.detail.toLowerCase().includes(q)));
+    if(rows.length===0) return;
+    shown+=rows.length;
+    html+='<div class="folder-group"><div class="folder-head">'+folder+'<span class="fc">'+rows.length+'</span></div>';
+    html+='<table><colgroup><col class="c1"><col class="c2"><col class="c3"></colgroup><tbody>';
+    rows.forEach(r=>{
+      html+='<tr><td class="path">'+escapeHtml(r.file)+'</td>'+
+        '<td class="cat"><span class="badge '+r.cat+'">'+CAT_LABEL[r.cat]+'</span></td>'+
+        '<td class="detail">'+r.detail+'</td></tr>';
+    });
+    html+='</tbody></table></div>';
+  });
+  root.innerHTML=html || '<p style="color:var(--muted);padding:2rem 0">Tidak ada hasil.</p>';
+  document.getElementById('result-count').textContent=shown+' dari '+ROWS.length+' file ditampilkan';
+}
+
+document.querySelectorAll('.chip').forEach(btn=>{
+  btn.addEventListener('click',()=>{
+    document.querySelectorAll('.chip').forEach(b=>b.setAttribute('aria-pressed','false'));
+    btn.setAttribute('aria-pressed','true');
+    activeFilter=btn.dataset.filter;
+    renderTable();
+  });
+});
+document.getElementById('search').addEventListener('input',e=>{query=e.target.value;renderTable();});
+
+renderStats();
+renderTable();
+</script>

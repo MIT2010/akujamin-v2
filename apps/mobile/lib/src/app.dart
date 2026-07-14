@@ -9,6 +9,7 @@ import 'package:feature_payment/feature_payment.dart';
 import 'package:feature_profile/feature_profile.dart';
 import 'package:feature_test/feature_test.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import 'package:shared/shared.dart';
 
@@ -16,26 +17,57 @@ import 'dashboard_notification_listener.dart';
 
 /// The composition root's widget (§13, §17): wires `AppRouter` (from
 /// `shared`) into `MaterialApp.router`, themed from `design_system`.
+///
+/// **Real fix, found during the reconciliation audit (2026-07-14), not a
+/// port**: `AuthSessionAdapter._toStatus()` maps `AuthState.initial()` (the
+/// gap between app start and `AuthCubit._restoreCachedSession()`
+/// finishing) to `AuthSessionStatus.unauthenticated` — the same status as a
+/// confirmed-logged-out user. Measured directly (a throwaway widget test
+/// pre-seeding a real cached session): the very first frame `AppRouter`
+/// builds genuinely renders `/login`'s form for an already-authenticated
+/// returning user, before the redirect flips to `/home` a couple of frames
+/// later once the restore resolves — not a blank gap, a flash of the wrong,
+/// fully-populated screen. The old app had a dedicated `AuthStatus.
+/// checkingSession`/`/splash` gate for exactly this window; this is the
+/// minimal functional equivalent — a loading indicator held until the
+/// first real `AuthState` (`authenticated` or `unauthenticated`) is known,
+/// not the old app's full splash carousel/branding (never migrated, no
+/// live gap once this is fixed — see GAPS.md).
 class App extends StatelessWidget {
   const App({super.key});
 
   @override
   Widget build(BuildContext context) {
-    final appRouter = getIt<AppRouter>()
-      ..standaloneRoutes = _routes
-      ..shellRoutes = _shellRoutes
-      ..shellDestinations = _shellDestinations;
-
-    // Wraps MaterialApp.router (not the other way around) so it mounts
-    // once for the app's whole lifetime, not just while a shell tab is
-    // visible — see DashboardNotificationListener's doc comment for why
-    // that distinction matters.
     return DashboardNotificationListener(
-      child: MaterialApp.router(
-        title: 'Flutter Starter Kit',
-        routerConfig: appRouter.router,
-        theme: AppTheme.light(),
-        darkTheme: AppTheme.dark(),
+      child: BlocBuilder<AuthCubit, AuthState>(
+        bloc: getIt<AuthCubit>(),
+        builder: (context, state) {
+          if (state is AuthInitial) {
+            return MaterialApp(
+              theme: AppTheme.light(),
+              darkTheme: AppTheme.dark(),
+              home: const Scaffold(
+                body: Center(child: CircularProgressIndicator()),
+              ),
+            );
+          }
+
+          final appRouter = getIt<AppRouter>()
+            ..standaloneRoutes = _routes
+            ..shellRoutes = _shellRoutes
+            ..shellDestinations = _shellDestinations;
+
+          // Wraps MaterialApp.router (not the other way around) so it
+          // mounts once for the app's whole lifetime, not just while a
+          // shell tab is visible — see DashboardNotificationListener's doc
+          // comment for why that distinction matters.
+          return MaterialApp.router(
+            title: 'Flutter Starter Kit',
+            routerConfig: appRouter.router,
+            theme: AppTheme.light(),
+            darkTheme: AppTheme.dark(),
+          );
+        },
       ),
     );
   }

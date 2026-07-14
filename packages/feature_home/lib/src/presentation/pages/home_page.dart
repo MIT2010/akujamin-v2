@@ -5,26 +5,36 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import 'package:shared/shared.dart';
 
-import '../cubit/home_cubit.dart';
-import '../cubit/home_state.dart';
-import '../widgets/home_item_card.dart';
-
 class HomePage extends StatelessWidget {
   const HomePage({super.key});
 
   @override
   Widget build(BuildContext context) {
-    return BlocProvider(
-      create: (_) => getIt<HomeCubit>()..loadFeed(),
+    return BlocProvider<AuthCubit>.value(
+      value: getIt<AuthCubit>(),
       child: const HomeView(),
     );
   }
 }
 
 /// Split from [HomePage] (and left un-exported from the package barrel) so
-/// widget tests can drive it directly with a fake `HomeCubit` via
+/// widget tests can drive it directly with a fake `AuthCubit` via
 /// `BlocProvider.value`, without going through `get_it` — same pattern as
-/// `authentication`'s `LoginView`.
+/// `feature_profile`'s `ProfileView`.
+///
+/// **Body content replaced 2026-07-14, found during the reconciliation
+/// audit, not a port**: this used to render a `HomeCubit`-driven paginated
+/// `HomeItem` feed backed by a Hive cache — confirmed, by checking against
+/// `flutter_starter_kit` (the template this project was bootstrapped from),
+/// to be generic starter-kit demo content that predates every migration
+/// decision in this repo, not something derived from the old app's real
+/// dashboard home screen at all. The old app's actual home screen (`dashboard/
+/// presentation/pages/home_page.dart`) showed a profile teaser and an
+/// incomplete-profile nudge — that's what's built here instead. The old
+/// screen's menu grid (about/counseling/payment) already has a live
+/// equivalent in this file's own `AppBar` icons below (ported earlier), so
+/// it isn't rebuilt a second time. `HomeCubit`/`HomeItem`/the Hive cache
+/// layer were deleted, not left behind unused — see MIGRATION_LOG.md.
 /// Riwayat and Akun used to have their own AppBar icons here, pushing
 /// `/history`/`/profile` directly. Removed once `apps/mobile` wired
 /// `AppRouter.shellRoutes`/`AppShell` (TAHAP 3, MIGRATION_LOG.md's
@@ -98,82 +108,108 @@ class HomeView extends StatelessWidget {
             icon: const Icon(Icons.logout),
             tooltip: 'Log out',
             onPressed: () async {
-              // Goes through AuthCubit (not AuthRepository directly) so the
-              // in-memory session AppRouter reads via AuthSessionAdapter
-              // actually flips to unauthenticated — otherwise `context.go`
-              // below just bounces straight back to `/home`.
-              await getIt<AuthCubit>().logout();
+              // context.read, not getIt directly: HomePage already provides
+              // the singleton via BlocProvider.value, so descendants read
+              // it from there (testable with a fake AuthCubit) — same
+              // pattern as ProfilePage's logout button.
+              await context.read<AuthCubit>().logout();
               if (context.mounted) context.go('/login');
             },
           ),
         ],
       ),
-      body: BlocBuilder<HomeCubit, HomeState>(
+      body: BlocBuilder<AuthCubit, AuthState>(
         builder: (context, state) => switch (state) {
-          HomeInitial() ||
-          HomeLoading() => const Center(child: CircularProgressIndicator()),
-          HomeError(:final failure) => Center(
-            child: Padding(
-              padding: const EdgeInsets.all(AppSpacing.md),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(failure.message),
-                  const SizedBox(height: AppSpacing.md),
-                  AppButton(
-                    label: 'Coba lagi',
-                    onPressed: () => context.read<HomeCubit>().loadFeed(),
-                  ),
-                ],
-              ),
-            ),
-          ),
-          HomeLoaded(:final items, :final isStale) => Column(
+          AuthAuthenticated(:final user, :final sessionProfile) => ListView(
+            padding: const EdgeInsets.all(AppSpacing.md),
             children: [
-              if (isStale) const _StaleBanner(),
-              Expanded(
-                child: ListView.separated(
-                  padding: const EdgeInsets.all(AppSpacing.md),
-                  itemCount: items.length,
-                  separatorBuilder: (_, _) =>
-                      const SizedBox(height: AppSpacing.sm),
-                  itemBuilder: (context, index) =>
-                      HomeItemCard(item: items[index]),
-                ),
-              ),
+              _ProfileTeaser(user: user, sessionProfile: sessionProfile),
+              if (!user.isRegistered) ...[
+                const SizedBox(height: AppSpacing.md),
+                const _IncompleteProfileBanner(),
+              ],
             ],
           ),
+          // Session still restoring, or somehow reached /home unauthenticated
+          // (AppRouter._redirect should prevent the latter) — nothing real
+          // to show yet, same "nothing to render before state resolves"
+          // stance as ProfileView.
+          _ => const SizedBox.shrink(),
         },
       ),
     );
   }
 }
 
-/// §11's "stale" tag, made visible — data mungkin belum terbaru, ditampilkan
-/// bila repository jatuh ke cache lokal karena tidak ada koneksi.
-class _StaleBanner extends StatelessWidget {
-  const _StaleBanner();
+/// Avatar + name teaser, migrated from the old app's real dashboard home
+/// screen (`dashboard/presentation/pages/home_page.dart`) — not the
+/// synthetic content this replaced. `sessionProfile` is `null` for the
+/// email/password `LoginCubit` flow (which never populates one, see
+/// `AuthState`'s doc comment); falls back to the account's email in that
+/// case rather than showing nothing.
+class _ProfileTeaser extends StatelessWidget {
+  const _ProfileTeaser({required this.user, required this.sessionProfile});
+
+  final User user;
+  final SessionProfile? sessionProfile;
+
+  @override
+  Widget build(BuildContext context) {
+    final avatar = sessionProfile?.avatar ?? '';
+    final displayName = sessionProfile?.name ?? user.email;
+
+    return AppCard(
+      child: Row(
+        children: [
+          CircleAvatar(
+            radius: 28,
+            backgroundImage: avatar.isNotEmpty ? NetworkImage(avatar) : null,
+            child: avatar.isEmpty ? const Icon(Icons.person) : null,
+          ),
+          const SizedBox(width: AppSpacing.md),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Halo, $displayName',
+                  style: Theme.of(context).textTheme.titleMedium,
+                ),
+                const SizedBox(height: AppSpacing.xs),
+                Text(user.email, style: Theme.of(context).textTheme.bodySmall),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Ported from the old app's `home_menu_config.dart` gate — the same
+/// `!user.isRegistered` check the Payment `IconButton` above enforces,
+/// surfaced here as a visible nudge instead of only a silent redirect the
+/// moment someone happens to tap Payment.
+class _IncompleteProfileBanner extends StatelessWidget {
+  const _IncompleteProfileBanner();
 
   @override
   Widget build(BuildContext context) {
     final colors = Theme.of(context).colorScheme;
-    return Container(
-      width: double.infinity,
-      color: colors.tertiaryContainer,
-      padding: const EdgeInsets.symmetric(
-        horizontal: AppSpacing.md,
-        vertical: AppSpacing.sm,
-      ),
+    return AppCard(
+      onTap: () => context.push<bool>('/register'),
       child: Row(
         children: [
-          Icon(Icons.cloud_off, size: 18, color: colors.onTertiaryContainer),
+          Icon(Icons.info_outline, color: colors.tertiary),
           const SizedBox(width: AppSpacing.sm),
-          Expanded(
+          const Expanded(
             child: Text(
-              'Data mungkin belum terbaru — menampilkan versi tersimpan terakhir.',
-              style: TextStyle(color: colors.onTertiaryContainer),
+              'Lengkapi profil kamu (KTP + selfie) untuk bisa melakukan '
+              'pembayaran tes.',
             ),
           ),
+          const SizedBox(width: AppSpacing.sm),
+          Icon(Icons.chevron_right, color: colors.tertiary),
         ],
       ),
     );
