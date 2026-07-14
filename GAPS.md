@@ -163,32 +163,6 @@ whether `/auth/me`'s real migrated response is flat or nested under `data`,
 unrelated to `register`'s own code, not resolved as a side effect of this
 feature."*
 
-**`apps/mobile` still ships with the starter kit's default `applicationId`,
-not a real one.** [docs/qa/about.md](docs/qa/about.md): *"Not a security
-issue for a shipped app (different real bundle ids on real devices), but
-worth fixing before this matters more: give `akujamin-v2` its own
-`applicationId`."*
-
----
-
-## Found while compiling this file, not a consciously-affirmed decision
-
-**`feature_counseling`'s "Mulai Tes Kedua" button is still a placeholder
-dialog — but the reason it gives is now stale.** `ChatPage`'s own doc
-comment ([packages/feature_counseling/lib/src/presentation/pages/chat_page.dart:15](packages/feature_counseling/lib/src/presentation/pages/chat_page.dart))
-says *"'Mulai Tes Kedua'... isn't wired to a real destination here —
-`test` isn't migrated yet."* `test` **has** since been migrated
-([MIGRATION_LOG.md](MIGRATION_LOG.md)'s `test` row, 2026-07-12) — and that
-same row records `feature_history`'s equivalent placeholder ("Lanjutkan
-Tes") getting wired to the real `/test/:code` route as part of that work.
-`counseling`'s placeholder was not revisited at the same time. This reads
-as an oversight, not a re-affirmed decision — flagged here rather than
-silently left, per this file's own standard. Not fixed as part of this
-audit since it wasn't explicitly requested; a real fix would be a one-line
-`context.push('/test/:code')` swap plus updating
-[docs/qa/counseling.md](docs/qa/counseling.md)'s matching checklist row and
-the doc comment itself.
-
 ---
 
 ## Explicitly not gaps (resolved during the 2026-07-14 reconciliation audit)
@@ -208,4 +182,32 @@ earlier reading of this project's history:
 - **`AuthInterceptor` never attached to the real `Dio` instance** — a real,
   previously-undiscovered bug (no authenticated request ever sent a Bearer
   token), found and fixed alongside the refresh-token wiring, not a
-  documented prior gap.
+  documented prior gap. Its methodological root cause is now closed too:
+  every feature's own tests mocked the network boundary and only checked
+  response handling, never what was actually sent, so nothing could have
+  caught this. `apps/mobile/test/auth_header_wiring_test.dart` now proves
+  the literal `Authorization: Bearer <token>` header against the real
+  DI-wired `Dio` instance — not a mock — and this is recorded as a named
+  regression-proof technique in `flutter_starter_kit`'s ARCHITECTURE.md
+  §28 ("verify request headers/metadata, not just response content") so
+  it doesn't stay a one-off.
+- **`feature_counseling`'s "Mulai Tes Kedua" placeholder** — was a stale,
+  unrevisited decision (found while compiling this file, see the earlier
+  revision of this section), not a consciously-accepted gap. **Fixed
+  2026-07-14**: `ChatPage`'s `_EndedBanner` now does real navigation
+  (`context.push('/test/$code')`), the exact same route-string pattern
+  `feature_history`'s "Lanjutkan Tes" button already used. Proven with a
+  real tap-through test against a `GoRouter`-backed harness (not just a
+  removed placeholder assertion) — see
+  `packages/feature_counseling/test/presentation/pages/chat_page_test.dart`.
+- **`apps/mobile`'s `applicationId`/bundle identifiers** — the GAPS.md
+  candidate for this (quoting [docs/qa/about.md](docs/qa/about.md): *"give
+  `akujamin-v2` its own `applicationId`"*) turned out to already be
+  resolved, not an open gap at all: `git log` confirms the real fix landed
+  in commit `8996188` (ADR-011's secure-storage-bleed fix), which predates
+  `docs/qa/about.md`'s note by several commits — that doc line was simply
+  never updated after the fix shipped. Verified directly against the
+  current source, not assumed: `com.akujamin.mobile` is the real
+  `applicationId`/`namespace` in `build.gradle.kts`, and the real
+  `PRODUCT_BUNDLE_IDENTIFIER`/`APPLICATION_ID` on iOS/macOS/Linux, checked
+  2026-07-14. `docs/qa/about.md`'s stale line has been corrected to match.

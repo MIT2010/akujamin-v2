@@ -11,12 +11,6 @@ import '../cubit/chat_state.dart';
 
 /// Migrated from the old app's `counseling/presentation/pages/
 /// chat_page.dart` — a single realtime chat thread with a psychologist.
-///
-/// "Mulai Tes Kedua" (shown once the old app's session ends) isn't wired
-/// to a real destination here — `test` isn't migrated yet. Same explicit-
-/// decision treatment as `feature_history`'s placeholder buttons:
-/// `AppDialog.info` says so, rather than a dead button or a route that
-/// 404s.
 class ChatPage extends StatelessWidget {
   const ChatPage({super.key});
 
@@ -183,11 +177,17 @@ class _EndedBanner extends StatelessWidget {
             ),
             AppButton(
               label: 'Mulai Tes Kedua',
-              onPressed: () => AppDialog.info(
-                context,
-                title: 'Belum tersedia',
-                message: 'Fitur ini belum tersedia. Coba lagi nanti.',
-              ),
+              // Real navigation now that `test` is migrated — same
+              // route-string pattern feature_history's own "Lanjutkan
+              // Tes" button already uses (§5, no direct package
+              // dependency on feature_test). Found stale during the
+              // 2026-07-14 GAPS.md compilation: this used to say "test
+              // isn't migrated yet", which stopped being true once `test`
+              // shipped — the placeholder was never revisited.
+              onPressed: () {
+                final code = GoRouterState.of(context).pathParameters['code']!;
+                context.push('/test/$code');
+              },
             ),
           ],
         ),

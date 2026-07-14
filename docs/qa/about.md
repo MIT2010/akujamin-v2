@@ -74,12 +74,18 @@ not part of the repo):**
 **Incidental finding, not a feature_about bug:** the Windows build landed
 straight on `/home` already authenticated, without ever showing `/login`.
 `flutter_secure_storage`'s Windows Credential Manager entry is keyed by
-the app's bundle identifier, which was never customized when `akujamin-v2`
-was bootstrapped from the starter kit (`com.example.mobile`, unchanged) —
-so a token saved by an earlier starter-kit login session on this same
-Windows account is being picked up here too. Not a security issue for a
-shipped app (different real bundle ids on real devices), but worth fixing
-before this matters more: give `akujamin-v2` its own `applicationId`.
+the app's bundle identifier, which at the time of writing this note was
+still `com.example.mobile`, unchanged from the starter kit — so a token
+saved by an earlier starter-kit login session on this same Windows account
+was being picked up here too.
+
+**RESOLVED 2026-07-13, commit `8996188`** (ADR-011's secure-storage-bleed
+fix, `flutter_starter_kit`'s ARCHITECTURE.md): `applicationId`/`namespace`/
+`PRODUCT_BUNDLE_IDENTIFIER`/`APPLICATION_ID` are all `com.akujamin.mobile`
+across every platform, and `SecureTokenStorage`'s keys are prefixed to
+match. This note was left unedited after that fix landed — caught and
+corrected 2026-07-14 while compiling [GAPS.md](../../GAPS.md), see its
+"Explicitly not gaps" section.
 
 **Old-app comparison — a real constraint, stated plainly.** The legacy
 `akujamin-app`'s `Env.baseURL` has no working default (`String.fromEnvironment('BASE_URL_API', defaultValue: '/api')` — a bare relative

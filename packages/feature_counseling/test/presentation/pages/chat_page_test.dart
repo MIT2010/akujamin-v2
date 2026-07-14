@@ -5,6 +5,7 @@ import 'package:feature_counseling/feature_counseling.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:go_router/go_router.dart';
 import 'package:mocktail/mocktail.dart';
 
 class _MockChatCubit extends MockCubit<ChatState> implements ChatCubit {}
@@ -17,14 +18,33 @@ void main() {
 
   const user = User(id: 'user-1', email: 'a@example.com', role: 'user');
 
+  // Real GoRouter, not a bare MaterialApp — ChatView's "Mulai Tes Kedua"
+  // button reads GoRouterState.of(context).pathParameters['code'] (same
+  // pattern as the existing "Coba lagi" retry button), so it needs an
+  // actual route to resolve that from. Matches feature_history's own
+  // history_page_test.dart harness shape for the same reason.
   Widget harness(_MockChatCubit chatCubit, _MockAuthCubit authCubit) {
-    return MaterialApp(
-      home: MultiBlocProvider(
-        providers: [
-          BlocProvider<ChatCubit>.value(value: chatCubit),
-          BlocProvider<AuthCubit>.value(value: authCubit),
+    return MaterialApp.router(
+      routerConfig: GoRouter(
+        initialLocation: '/chat/ABC123',
+        routes: [
+          GoRoute(
+            path: '/chat/:code',
+            builder: (context, state) => MultiBlocProvider(
+              providers: [
+                BlocProvider<ChatCubit>.value(value: chatCubit),
+                BlocProvider<AuthCubit>.value(value: authCubit),
+              ],
+              child: const ChatView(psychologist: 'Budi'),
+            ),
+          ),
+          GoRoute(
+            path: '/test/:code',
+            builder: (context, state) => Scaffold(
+              body: Text('test-page:${state.pathParameters['code']}'),
+            ),
+          ),
         ],
-        child: const ChatView(psychologist: 'Budi'),
       ),
     );
   }
@@ -137,7 +157,10 @@ void main() {
   });
 
   testWidgets(
-    'shows the ended banner and the placeholder dialog for "Mulai Tes Kedua"',
+    '"Mulai Tes Kedua" navigates to the real test page now that test is '
+    'migrated — found stale during the 2026-07-14 GAPS.md compilation '
+    '(this used to be a placeholder dialog saying "test isn\'t migrated '
+    'yet", which had stopped being true and was never revisited)',
     (tester) async {
       when(
         () => chatCubit.state,
@@ -151,10 +174,7 @@ void main() {
       await tester.tap(find.text('Mulai Tes Kedua'));
       await tester.pumpAndSettle();
 
-      expect(
-        find.text('Fitur ini belum tersedia. Coba lagi nanti.'),
-        findsOneWidget,
-      );
+      expect(find.text('test-page:ABC123'), findsOneWidget);
     },
   );
 }
