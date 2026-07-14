@@ -1,0 +1,12 @@
+{
+  "ENV": "development",
+  "APP_NAME": "Starter Kit Dev",
+  "BASE_URL": "https://api-dev.example.com",
+  "WS_URL": "ws-dev.example.com",
+  "WS_PORT": "6001",
+  "WS_APP_KEY": "your-pusher-app-key",
+  "WS_AUTH_ENDPOINT": "https://ws-dev.example.com/broadcasting/auth",
+  "SENTRY_DSN": "",
+  "ENABLE_LOGS": "true",
+  "ENABLE_DEVTOOLS": "true"
+}

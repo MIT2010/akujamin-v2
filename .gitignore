@@ -74,3 +74,8 @@ build/
 .claude/settings.local.json
 .claude/scheduled_tasks.lock
 .claude/scheduled_tasks.json
+
+# Flavor files — containing sensitives data, DON'T commit
+flavors/development.json
+flavors/staging.json
+flavors/production.json

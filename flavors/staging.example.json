@@ -1,0 +1,12 @@
+{
+  "ENV": "staging",
+  "APP_NAME": "Starter Kit Staging",
+  "BASE_URL": "https://api-staging.example.com",
+  "WS_URL": "ws-staging.example.com",
+  "WS_PORT": "6001",
+  "WS_APP_KEY": "staging-app-key",
+  "WS_AUTH_ENDPOINT": "https://ws-staging.example.com/broadcasting/auth",
+  "SENTRY_DSN": "https://your-sentry-dsn@sentry.io/staging",
+  "ENABLE_LOGS": "true",
+  "ENABLE_DEVTOOLS": "false"
+}

@@ -1,0 +1,12 @@
+{
+  "ENV": "production",
+  "APP_NAME": "Starter Kit",
+  "BASE_URL": "https://api.example.com",
+  "WS_URL": "ws.example.com",
+  "WS_PORT": "6001",
+  "WS_APP_KEY": "prod-app-key",
+  "WS_AUTH_ENDPOINT": "https://ws.example.com/broadcasting/auth",
+  "SENTRY_DSN": "https://your-sentry-dsn@sentry.io/production",
+  "ENABLE_LOGS": "false",
+  "ENABLE_DEVTOOLS": "false"
+}
