@@ -79,14 +79,22 @@ melos:
       run: fvm flutter pub outdated
       description: "Cek paket yang sudah ada versi lebih baru di luar constraint saat ini -- jalankan tiap kuartal sesuai §33 ARCHITECTURE.md (Long-Term Maintenance Strategy), JANGAN auto-upgrade tanpa baca changelog masing-masing paket dulu"
     run:dev:
-      run: melos exec --scope="mobile" -- fvm flutter run --flavor dev -t lib/main_dev.dart
+      # --dart-define-from-file path is relative to apps/mobile (melos exec's
+      # cwd for --scope=mobile), not the workspace root -- ../../flavors/.
+      # ADR-014-equivalent decision (see flutter_starter_kit's ARCHITECTURE.md):
+      # one file per flavor instead of accumulating --dart-define flags.
+      # flavors/*.json key names are packages/core's Env class's actual
+      # contract (FLAVOR/API_BASE_URL/API_VERSION/WS_HOST/WS_PORT/WS_KEY) --
+      # keep them in sync, a mismatch fails silently (wrong/default config)
+      # or crashes main_staging.dart/main_prod.dart's own FLAVOR assert.
+      run: melos exec --scope="mobile" -- fvm flutter run --flavor dev -t lib/main_dev.dart --dart-define-from-file=../../flavors/development.json
       description: "Jalankan app flavor development"
     run:dev:web:
-      run: melos exec --scope="mobile" -- fvm flutter run --dart-define=FLAVOR=dev -t lib/main_dev.dart -d chrome
+      run: melos exec --scope="mobile" -- fvm flutter run --dart-define-from-file=../../flavors/development.json -t lib/main_dev.dart -d chrome
       description: "Jalankan app di mode development (web/Chrome)"
     run:staging:
-      run: melos exec --scope="mobile" -- fvm flutter run --flavor staging -t lib/main_staging.dart
+      run: melos exec --scope="mobile" -- fvm flutter run --flavor staging -t lib/main_staging.dart --dart-define-from-file=../../flavors/staging.json
       description: "Jalankan app flavor staging"
     run:prod:
-      run: melos exec --scope="mobile" -- fvm flutter run --flavor prod -t lib/main_prod.dart
+      run: melos exec --scope="mobile" -- fvm flutter run --flavor prod -t lib/main_prod.dart --dart-define-from-file=../../flavors/production.json
       description: "Jalankan app flavor production -- HATI-HATI, biasanya connect ke API production asli, bukan untuk uji coba sembarangan"

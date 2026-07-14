@@ -42,6 +42,27 @@ until it does.
 exception is hive_ce's `*.g.yaml` schema-migration files, which *are*
 committed (see the `gen` row below).
 
+**Per-flavor config (`flavors/*.json`) isn't committed either — copy the
+examples before running the app for the first time:**
+
+```bash
+cp flavors/development.example.json flavors/development.json
+cp flavors/staging.example.json flavors/staging.json
+cp flavors/production.example.json flavors/production.json
+# edit each flavors/*.json with your real API_BASE_URL/WS_HOST/WS_KEY etc.
+```
+
+`run:dev`/`run:staging`/`run:prod` (see the table below) pass the matching
+file via `--dart-define-from-file`, one file per flavor instead of a long
+list of individual `--dart-define` flags. The real `flavors/*.json` files
+are gitignored (`flavors/*.json` except the `.example.json` templates) —
+they carry real endpoints/keys, never commit them. **Keep each file's keys
+in sync with `packages/core/lib/src/env/env.dart`'s `Env` class**
+(`FLAVOR`/`API_BASE_URL`/`API_VERSION`/`WS_HOST`/`WS_PORT`/`WS_KEY`) — a
+renamed or missing key here fails silently (the app falls back to `Env`'s
+hardcoded defaults) rather than erroring, except `FLAVOR` itself, which
+trips `main_staging.dart`/`main_prod.dart`'s own assert if it's ever wrong.
+
 **`melos run <anything>` is already safe** — every script body calls
 `fvm flutter`/`fvm dart` internally, so the pinned SDK is used even if you
 never type `fvm` yourself. But **ad-hoc commands outside melos scripts**
@@ -73,7 +94,9 @@ already baked in (see Prerequisites above).
 | `run:dev:web` | Same as `run:dev` but forced to Chrome | Quick web-target smoke testing |
 
 `--flavor dev|staging|prod` pairs with `-t apps/mobile/lib/main_<flavor>.dart`
-— see §30 of ARCHITECTURE.md for the full flavor story.
+and `--dart-define-from-file=flavors/<flavor>.json` — see §30 of
+ARCHITECTURE.md for the full flavor story, and "Per-flavor config" above
+for the JSON file setup this now depends on.
 
 ## Scaffolding a new feature (`mason make feature`)
 
