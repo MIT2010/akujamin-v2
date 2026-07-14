@@ -74,4 +74,36 @@ void main() {
     verify(() => repository.logout()).called(1);
     verify(() => notificationGateway.cancelAll()).called(1);
   });
+
+  group('AuthCubit as TokenRefresher (§9/§10, RefreshTokenInterceptor)', () {
+    test('refresh() delegates straight to the repository', () async {
+      when(() => repository.getCachedUser()).thenAnswer((_) async => null);
+      when(() => repository.refreshToken()).thenAnswer((_) async => true);
+      final cubit = AuthCubit(repository, notificationGateway);
+      await pumpEventQueue();
+
+      final refreshed = await cubit.refresh();
+
+      expect(refreshed, isTrue);
+      verify(() => repository.refreshToken()).called(1);
+    });
+
+    test('forceLogout() has the exact same side effects as logout() — a '
+        'refresh-triggered logout is not a lesser/different path', () async {
+      when(() => repository.getCachedUser()).thenAnswer((_) async => user);
+      when(
+        () => repository.getCachedSessionProfile(),
+      ).thenAnswer((_) async => null);
+      when(() => repository.logout()).thenAnswer((_) async => const Ok(null));
+      final cubit = AuthCubit(repository, notificationGateway);
+      await pumpEventQueue();
+      expect(cubit.state, AuthState.authenticated(user));
+
+      await cubit.forceLogout();
+
+      expect(cubit.state, const AuthState.unauthenticated());
+      verify(() => repository.logout()).called(1);
+      verify(() => notificationGateway.cancelAll()).called(1);
+    });
+  });
 }

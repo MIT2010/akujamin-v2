@@ -2,8 +2,40 @@ import 'package:core/core.dart';
 import 'package:shared/shared.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+/// `RegisterModule.dio` (§9/§10) now requires a [TokenProvider]/
+/// [TokenRefresher] to attach `AuthInterceptor`/`RefreshTokenInterceptor` —
+/// real bindings for both only exist in `authentication`'s own module,
+/// which this package doesn't (and, by the dependency direction, can't)
+/// depend on. `shared`'s own isolated `configureDependencies()` needs a
+/// stand-in for each, registered directly, the same way `apps/mobile`'s
+/// full DI graph gets the real `authentication`-backed ones.
+class _FakeTokenProvider implements TokenProvider {
+  @override
+  Future<String?> get accessToken async => null;
+  @override
+  Future<String?> get refreshToken async => null;
+  @override
+  Future<void> saveTokens({
+    required String access,
+    required String refresh,
+  }) async {}
+  @override
+  Future<void> clear() async {}
+}
+
+class _FakeTokenRefresher implements TokenRefresher {
+  @override
+  Future<bool> refresh() async => false;
+  @override
+  Future<void> forceLogout() async {}
+}
+
 void main() {
   group('configureDependencies', () {
+    setUp(() {
+      getIt.registerLazySingleton<TokenProvider>(() => _FakeTokenProvider());
+      getIt.registerLazySingleton<TokenRefresher>(() => _FakeTokenRefresher());
+    });
     tearDown(() => getIt.reset());
 
     test(

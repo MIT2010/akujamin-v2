@@ -49,6 +49,19 @@ class AuthRemoteDataSource {
     );
   }
 
+  /// `/auth/refresh` — old-app-shaped envelope: `{"status": "ok"|"nok",
+  /// "message"?, "access_token": "..."}` (mirrors the legacy app's
+  /// `auth_repo_impl.dart` `refreshToken()`, the only concrete evidence of
+  /// this endpoint's real response shape — no saved Postman example
+  /// exists). Reactive-only, called by `RefreshTokenInterceptor` on a
+  /// real 401 (§9/§10) — never on a schedule, so no TTL is needed here.
+  Future<Result<Failure, Map<String, dynamic>>> refreshToken() {
+    return _client.post(
+      '/auth/refresh',
+      parser: (json) => json as Map<String, dynamic>,
+    );
+  }
+
   /// Fetched right after a successful [verifyOtp] to get the user fields
   /// the login-otp response doesn't include. Also reused by
   /// [AuthRepositoryImpl.refreshProfile] after a successful registration.

@@ -25,6 +25,13 @@ abstract class AuthRepository {
   });
 
   Future<Result<Failure, void>> logout();
+
+  /// `/auth/refresh` (§9/§10) — reactive-only, called by
+  /// `RefreshTokenInterceptor` on a real 401. Returns a plain `bool` (not
+  /// `Result`) because its one caller only needs succeeded-or-not; the
+  /// typed `Failure` has nowhere useful to surface to at that layer, same
+  /// reasoning as [getCachedUser] below not returning one either.
+  Future<bool> refreshToken();
   Future<User?> getCachedUser();
   Future<SessionProfile?> getCachedSessionProfile();
 

@@ -198,6 +198,48 @@ void main() {
     });
   });
 
+  group('AuthRepositoryImpl.refreshToken', () {
+    test('saves the new access token and returns true when the envelope '
+        'status is ok', () async {
+      when(() => remote.refreshToken()).thenAnswer(
+        (_) async =>
+            const Ok({'status': 'ok', 'access_token': 'fresh-access-1'}),
+      );
+      when(() => tokenStorage.saveAccessToken(any())).thenAnswer((_) async {});
+
+      final refreshed = await repository.refreshToken();
+
+      expect(refreshed, isTrue);
+      verify(() => tokenStorage.saveAccessToken('fresh-access-1')).called(1);
+    });
+
+    test('returns false and never touches token storage when the envelope '
+        'status is nok', () async {
+      when(() => remote.refreshToken()).thenAnswer(
+        (_) async => const Ok({'status': 'nok', 'message': 'Sesi habis'}),
+      );
+
+      final refreshed = await repository.refreshToken();
+
+      expect(refreshed, isFalse);
+      verifyNever(() => tokenStorage.saveAccessToken(any()));
+    });
+
+    test(
+      'returns false when the request itself fails (network/server error)',
+      () async {
+        when(
+          () => remote.refreshToken(),
+        ).thenAnswer((_) async => const Err(UnauthorizedFailure()));
+
+        final refreshed = await repository.refreshToken();
+
+        expect(refreshed, isFalse);
+        verifyNever(() => tokenStorage.saveAccessToken(any()));
+      },
+    );
+  });
+
   group('AuthRepositoryImpl.getCachedUser', () {
     test('delegates straight to token storage', () async {
       when(() => tokenStorage.getCachedUser()).thenAnswer(

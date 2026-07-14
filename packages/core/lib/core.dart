@@ -17,6 +17,7 @@ export 'src/network/interceptors/logging_interceptor.dart';
 export 'src/network/interceptors/refresh_token_interceptor.dart';
 export 'src/network/interceptors/retry_interceptor.dart';
 export 'src/network/token_provider.dart';
+export 'src/network/token_refresher.dart';
 export 'src/pagination/pagination.dart';
 export 'src/result/result.dart';
 export 'src/usecase/usecase.dart';

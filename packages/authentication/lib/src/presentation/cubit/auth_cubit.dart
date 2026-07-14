@@ -1,3 +1,4 @@
+import 'package:core/core.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:injectable/injectable.dart';
 import 'package:shared/shared.dart';
@@ -19,8 +20,17 @@ import 'auth_state.dart';
 /// authoritative call site every UI logout button already goes through, so
 /// [NotificationGateway.cancelAll] belongs here, not scattered across
 /// individual logout buttons.
+///
+/// Also implements [TokenRefresher] (§9/§10) — bound to that interface too
+/// via `RegisterModule.tokenRefresher`, so `RefreshTokenInterceptor` (built
+/// in `shared`, which can't import `authentication`) can call back into the
+/// one auth-session owner on a real 401, without a circular package
+/// dependency. [refresh] and [forceLogout] are that contract's two methods;
+/// [forceLogout] is deliberately just [logout] under another name — a
+/// refresh-triggered logout needs the exact same side effects as a
+/// user-tapped one.
 @lazySingleton
-class AuthCubit extends Cubit<AuthState> {
+class AuthCubit extends Cubit<AuthState> implements TokenRefresher {
   final AuthRepository _repository;
   final NotificationGateway _notificationGateway;
 
@@ -53,4 +63,10 @@ class AuthCubit extends Cubit<AuthState> {
     await _notificationGateway.cancelAll();
     emit(const AuthState.unauthenticated());
   }
+
+  @override
+  Future<bool> refresh() => _repository.refreshToken();
+
+  @override
+  Future<void> forceLogout() => logout();
 }
