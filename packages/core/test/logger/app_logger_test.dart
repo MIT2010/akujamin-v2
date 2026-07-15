@@ -3,7 +3,7 @@ import 'package:test/test.dart';
 
 void main() {
   group('AppLogger', () {
-    const logger = AppLogger();
+    final logger = AppLogger();
 
     test('all log levels run without throwing', () {
       expect(() => logger.d('debug message'), returnsNormally);

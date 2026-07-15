@@ -1,49 +1,52 @@
-import 'dart:developer' as developer;
-
 import 'package:injectable/injectable.dart';
+import 'package:logger/logger.dart';
 
 /// Named channels keep `flutter run`'s console filterable by concern.
 enum LogChannel { api, bloc, nav, repo }
 
-/// Thin wrapper around `dart:developer`'s logger — no external logging
-/// package needed, keeps `core` dependency-free for something this small.
+/// Thin wrapper around the `logger` package (§10).
+///
+/// **Switched from `dart:developer.log`, 2026-07-15** — found while
+/// debugging why `LoggingInterceptor`'s request/response lines never
+/// showed up during a real web run: `dart:developer.log` is never relayed
+/// to the `flutter run` terminal on the web platform (native platforms'
+/// terminal picks it up via the VM service; web has no such relay, the
+/// call effectively goes nowhere the terminal can see). `logger`'s default
+/// output (`ConsoleOutput`) ultimately calls `print()`, which Flutter's
+/// tooling *does* relay to the terminal on every platform, web included —
+/// this is what actually fixes the visibility gap, not just a cosmetic
+/// swap. `SimplePrinter` keeps output to one line per call, close to the
+/// original format, rather than `logger`'s default multi-line boxed
+/// `PrettyPrinter` (noisy for a steady stream of API method+URI lines).
 @lazySingleton
 class AppLogger {
-  const AppLogger();
+  AppLogger() : _logger = Logger(printer: SimplePrinter(colors: true));
+
+  final Logger _logger;
 
   void d(String message, {LogChannel channel = LogChannel.repo}) =>
-      _log(message, channel, level: 500);
+      _logger.d(_prefixed(channel, message));
 
   void i(String message, {LogChannel channel = LogChannel.repo}) =>
-      _log(message, channel, level: 800);
+      _logger.i(_prefixed(channel, message));
 
   void w(String message, {LogChannel channel = LogChannel.repo}) =>
-      _log(message, channel, level: 900);
+      _logger.w(_prefixed(channel, message));
 
   void e(
     String message, {
     LogChannel channel = LogChannel.repo,
     Object? error,
     StackTrace? stackTrace,
-  }) =>
-      _log(message, channel, level: 1000, error: error, stackTrace: stackTrace);
+  }) => _logger.e(
+    _prefixed(channel, message),
+    error: error,
+    stackTrace: stackTrace,
+  );
 
   /// Convenience shortcut used by [LoggingInterceptor].
   void api(String message) => i(message, channel: LogChannel.api);
 
-  void _log(
-    String message,
-    LogChannel channel, {
-    required int level,
-    Object? error,
-    StackTrace? stackTrace,
-  }) {
-    developer.log(
-      message,
-      name: 'app.${channel.name}',
-      level: level,
-      error: error,
-      stackTrace: stackTrace,
-    );
-  }
+  String _prefixed(LogChannel channel, String message) =>
+      '[app.${channel.name}] $message';
 }

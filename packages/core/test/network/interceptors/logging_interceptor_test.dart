@@ -20,7 +20,7 @@ void main() {
   group('LoggingInterceptor', () {
     test('passes requests through without throwing when enabled', () async {
       final dio = Dio()..httpClientAdapter = _OkAdapter();
-      dio.interceptors.add(LoggingInterceptor(const AppLogger()));
+      dio.interceptors.add(LoggingInterceptor(AppLogger()));
 
       final response = await dio.get('https://api.test/thing');
 
@@ -29,9 +29,7 @@ void main() {
 
     test('passes requests through without throwing when disabled', () async {
       final dio = Dio()..httpClientAdapter = _OkAdapter();
-      dio.interceptors.add(
-        LoggingInterceptor(const AppLogger(), enabled: false),
-      );
+      dio.interceptors.add(LoggingInterceptor(AppLogger(), enabled: false));
 
       final response = await dio.get('https://api.test/thing');
 
