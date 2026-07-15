@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:core/core.dart';
 import 'package:injectable/injectable.dart';
 
@@ -6,6 +8,26 @@ import '../../domain/entities/user.dart';
 import '../../domain/repositories/auth_repository.dart';
 import '../datasources/auth_remote_datasource.dart';
 import '../datasources/secure_token_storage.dart';
+
+/// `/auth/me` never carries a `role` (Permanent Finding #10) — the only
+/// place it genuinely exists is this claim inside the JWT `/auth/login-otp`
+/// issues. Decodes the payload segment only (no signature check — this app
+/// never verifies its own backend's tokens, only reads a claim already
+/// trusted by virtue of coming straight from that backend over TLS/the
+/// pinned dev network). Returns `null` on anything malformed rather than
+/// throwing — a role decode failure must never block login.
+String? _decodeRoleClaim(String jwt) {
+  final parts = jwt.split('.');
+  if (parts.length != 3) return null;
+  try {
+    final payload =
+        jsonDecode(utf8.decode(base64Url.decode(base64Url.normalize(parts[1]))))
+            as Map<String, dynamic>;
+    return payload['role'] as String?;
+  } catch (_) {
+    return null;
+  }
+}
 
 /// §20 — converts the remote [UserModel] into a domain [User] and persists
 /// tokens (+ the user itself, for [getCachedUser]) on success. Both
@@ -59,7 +81,9 @@ class AuthRepositoryImpl implements AuthRepository {
       return profileResult.fold((failure) async => Err(failure), (
         profile,
       ) async {
-        final user = profile.toEntity();
+        final user = profile.toEntity(
+          role: _decodeRoleClaim(accessToken) ?? '',
+        );
         final sessionProfile = profile.toSessionProfile();
         await _tokenStorage.saveUser(user);
         await _tokenStorage.saveSessionProfile(sessionProfile);
@@ -138,7 +162,11 @@ class AuthRepositoryImpl implements AuthRepository {
     final profileResult = await _remote.getProfile();
 
     return profileResult.fold((failure) async => Err(failure), (profile) async {
-      final user = profile.toEntity();
+      final accessToken = await _tokenStorage.accessToken;
+      final role = accessToken == null
+          ? ''
+          : _decodeRoleClaim(accessToken) ?? '';
+      final user = profile.toEntity(role: role);
       final sessionProfile = profile.toSessionProfile();
       await _tokenStorage.saveUser(user);
       await _tokenStorage.saveSessionProfile(sessionProfile);

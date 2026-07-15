@@ -125,7 +125,10 @@ void main() {
     },
   );
 
-  test('getProfile fetches /auth/me and parses the body', () async {
+  test('getProfile fetches /auth/me and unwraps the real nested envelope — '
+      'every field lives under data except is_regis, which is a sibling '
+      '(confirmed against the real backend 2026-07-15, Permanent Finding '
+      '#10)', () async {
     when(
       () => client.get<UserProfileModel>(
         '/auth/me',
@@ -138,12 +141,16 @@ void main() {
               as UserProfileModel Function(dynamic);
       return Ok(
         parser({
-          'id': '1',
-          'email': 'a@example.com',
-          'role': 'admin',
-          'name': 'Ani',
-          'avatars': 'https://example.com/a.png',
-          'nik': '1234567890123456',
+          'status': 'ok',
+          'message': 'Data ditemukan',
+          'data': {
+            'id': 1,
+            'email': 'a@example.com',
+            'name': 'Ani',
+            'avatars': 'https://example.com/a.png',
+            'nik': '1234567890123456',
+          },
+          'is_regis': true,
         }),
       );
     });
@@ -155,6 +162,7 @@ void main() {
     expect(value.id, '1');
     expect(value.avatar, 'https://example.com/a.png');
     expect(value.nik, '1234567890123456');
+    expect(value.isRegistered, isTrue);
   });
 
   test('extractKtp posts to /registrasi/ktp with the ktp and image multipart '

@@ -65,10 +65,27 @@ class AuthRemoteDataSource {
   /// Fetched right after a successful [verifyOtp] to get the user fields
   /// the login-otp response doesn't include. Also reused by
   /// [AuthRepositoryImpl.refreshProfile] after a successful registration.
+  ///
+  /// **Confirmed against the real Development backend, 2026-07-15**
+  /// (MIGRATION_LOG.md Permanent Finding #10): the real envelope is
+  /// `{"status": "ok", "message": "...", "data": {...fields...},
+  /// "is_regis": bool}` — every field lives under `data` *except*
+  /// `is_regis`, which is a sibling of `data`, not nested inside it. This
+  /// unwraps that shape into the flat map [UserProfileModel.fromJson]
+  /// expects, exactly mirroring the old app's own
+  /// `auth_repo_impl.dart getProfile()` (`data['data']` +
+  /// `data['is_regis']` passed separately).
   Future<Result<Failure, UserProfileModel>> getProfile() {
     return _client.get(
       '/auth/me',
-      parser: (json) => UserProfileModel.fromJson(json as Map<String, dynamic>),
+      parser: (json) {
+        final envelope = json as Map<String, dynamic>;
+        final data = envelope['data'] as Map<String, dynamic>;
+        return UserProfileModel.fromJson({
+          ...data,
+          'is_regis': envelope['is_regis'],
+        });
+      },
     );
   }
 

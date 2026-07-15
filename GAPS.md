@@ -157,11 +157,14 @@ subscribes to it yet — a deliberate scope decision, not an oversight...
 Rebuilding that table wasn't part of this slice's explicit definition of
 done."*
 
-**`UserProfileModel`'s envelope-nesting question stays open.**
-[docs/qa/register.md](docs/qa/register.md) §7: *"a pre-existing concern about
-whether `/auth/me`'s real migrated response is flat or nested under `data`,
-unrelated to `register`'s own code, not resolved as a side effect of this
-feature."*
+**`UserProfileModel`'s envelope-nesting question — ✅ answered and fixed
+2026-07-15, no longer a gap.** Live-backend verification against the real
+Development environment confirmed `/auth/me` nests every field under
+`data` except `is_regis` (a top-level sibling), and that `role` doesn't
+appear in that response at all (sourced from the JWT claim instead) — see
+[MIGRATION_LOG.md](MIGRATION_LOG.md) Permanent Finding #10 for the full
+mismatch and fix. Left here, not moved to the resolved section below, so
+the original open question stays traceable to its answer.
 
 ---
 

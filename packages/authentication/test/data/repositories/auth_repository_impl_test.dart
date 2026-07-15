@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:authentication/authentication.dart';
 import 'package:core/core.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -6,6 +8,16 @@ import 'package:mocktail/mocktail.dart';
 class _MockAuthRemoteDataSource extends Mock implements AuthRemoteDataSource {}
 
 class _MockSecureTokenStorage extends Mock implements SecureTokenStorage {}
+
+/// A real Development access token's `role` claim is only readable by
+/// decoding the JWT (Permanent Finding #10) — this builds a minimal,
+/// correctly-shaped token for that decode path, no real key/signature
+/// needed since [AuthRepositoryImpl] never verifies the signature.
+String _fakeJwtWithRole(String role) {
+  String segment(Map<String, dynamic> claims) =>
+      base64Url.encode(utf8.encode(jsonEncode(claims))).replaceAll('=', '');
+  return '${segment({'alg': 'HS256'})}.${segment({'role': role})}.signature';
+}
 
 void main() {
   late _MockAuthRemoteDataSource remote;
@@ -103,17 +115,18 @@ void main() {
     const profile = UserProfileModel(
       id: '1',
       email: 'a@example.com',
-      role: 'admin',
       name: 'Ani',
       avatar: 'https://example.com/a.png',
       nik: '1234567890123456',
     );
 
-    test('saves the access token, the user and the session profile, then '
-        'returns Ok on success', () async {
+    test('saves the access token, the user (role decoded from the access '
+        "token's JWT claim -- /auth/me never carries one, Permanent Finding "
+        '#10) and the session profile, then returns Ok on success', () async {
+      final accessToken = _fakeJwtWithRole('peserta');
       when(
         () => remote.verifyOtp('6281234567890', '123456'),
-      ).thenAnswer((_) async => const Ok('otp-access-1'));
+      ).thenAnswer((_) async => Ok(accessToken));
       when(() => tokenStorage.saveAccessToken(any())).thenAnswer((_) async {});
       when(
         () => remote.getProfile(),
@@ -132,10 +145,11 @@ void main() {
       final (user, sessionProfile) =
           (result as Ok<Failure, (User, SessionProfile)>).value;
       expect(user.id, '1');
+      expect(user.role, 'peserta');
       expect(sessionProfile.nik, '1234567890123456');
       expect(sessionProfile.avatar, 'https://example.com/a.png');
       expect(sessionProfile.name, 'Ani');
-      verify(() => tokenStorage.saveAccessToken('otp-access-1')).called(1);
+      verify(() => tokenStorage.saveAccessToken(accessToken)).called(1);
       verify(() => tokenStorage.saveUser(any())).called(1);
       verify(() => tokenStorage.saveSessionProfile(any())).called(1);
     });
@@ -363,7 +377,6 @@ void main() {
     const profile = UserProfileModel(
       id: '1',
       email: 'a@example.com',
-      role: 'admin',
       name: 'Ani',
       avatar: 'https://example.com/a.png',
       nik: '1234567890123456',
@@ -371,10 +384,14 @@ void main() {
     );
 
     test('fetches the profile, persists it and returns the user + session '
-        'profile pair on success', () async {
+        'profile pair on success, role decoded from the currently-stored '
+        "access token's JWT claim", () async {
       when(
         () => remote.getProfile(),
       ).thenAnswer((_) async => const Ok(profile));
+      when(
+        () => tokenStorage.accessToken,
+      ).thenAnswer((_) async => _fakeJwtWithRole('peserta'));
       when(() => tokenStorage.saveUser(any())).thenAnswer((_) async {});
       when(
         () => tokenStorage.saveSessionProfile(any()),
@@ -386,9 +403,27 @@ void main() {
       final (user, sessionProfile) =
           (result as Ok<Failure, (User, SessionProfile)>).value;
       expect(user.isRegistered, isTrue);
+      expect(user.role, 'peserta');
       expect(sessionProfile.nik, '1234567890123456');
       verify(() => tokenStorage.saveUser(any())).called(1);
       verify(() => tokenStorage.saveSessionProfile(any())).called(1);
+    });
+
+    test('role defaults to empty when no access token is stored -- never '
+        'invents a role rather than failing to decode one', () async {
+      when(
+        () => remote.getProfile(),
+      ).thenAnswer((_) async => const Ok(profile));
+      when(() => tokenStorage.accessToken).thenAnswer((_) async => null);
+      when(() => tokenStorage.saveUser(any())).thenAnswer((_) async {});
+      when(
+        () => tokenStorage.saveSessionProfile(any()),
+      ).thenAnswer((_) async {});
+
+      final result = await repository.refreshProfile();
+
+      final (user, _) = (result as Ok<Failure, (User, SessionProfile)>).value;
+      expect(user.role, '');
     });
 
     test('returns Err and never touches token storage when the profile fetch '

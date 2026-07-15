@@ -204,11 +204,12 @@ same "explicit match, honest failure" standard already applied to
   (`/auth/me`, `SessionProfile`, logout) — `refreshProfile()` reuses
   `getProfile()`, not a new endpoint, so its transit/logging properties
   are already established there, not re-derived here.
-- The still-unverified `UserProfileModel` envelope-nesting question
-  (flagged in that model's own doc comment when `is_regis` was added) —
-  a pre-existing concern about whether `/auth/me`'s real migrated
-  response is flat or nested under `data`, unrelated to `register`'s own
-  code, not resolved as a side effect of this feature.
+- The `UserProfileModel` envelope-nesting question flagged here as
+  unverified — **now answered, 2026-07-15, MIGRATION_LOG.md Permanent
+  Finding #10**: `/auth/me`'s real response nests every field under
+  `data` except `is_regis`, which is a top-level sibling; the fix landed
+  in `AuthRemoteDataSource.getProfile()`, unrelated to `register`'s own
+  code, same as this note originally scoped it.
 - `CameraGateway`'s own failure-handling/lens-selection behavior —
   already covered by `packages/shared`'s own test suite and permanent
   finding #7, not re-verified here.

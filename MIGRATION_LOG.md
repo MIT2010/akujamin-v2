@@ -403,6 +403,210 @@ blast radius was total (100% of network calls, every migrated feature).
 See `docs/qa/auth_login.md`/`counseling.md`/`history.md` for the
 now-corrected notes on their own `/v1/`-based throwaway test evidence.
 
+**10. ✅ Resolved 2026-07-15 (same live-backend run that found it) —
+`GET /auth/me`'s real shape was neither what `UserProfileModel.fromJson`
+assumed, and the mismatch crashed login uncaught rather than failing
+gracefully.** First real end-to-end OTP login against the Development
+backend (`flavors/development.json`), driven through the real DI graph
+(`SendOtpUseCase`/`VerifyOtpUseCase`/`AuthRepositoryImpl`, no mocks) —
+`send-otp` and `login-otp` both succeeded exactly as the code assumes,
+but `VerifyOtpUseCase`'s internal `getProfile()` call threw
+`type 'Null' is not a subtype of type 'String'` inside
+`UserProfileModel.fromJson`, uncaught, because `ApiClient` (`packages/
+core/lib/src/network/api_client.dart`) only catches `DioException` in
+its `try`/`on` blocks — a parser/deserialization exception is not a
+`DioException` and propagates straight past `_mapDioError`. **Precisely:
+the crash was thrown by `id` (the first required field
+`json_serializable` reads), not `role` as first suspected** — with the
+envelope unwrapped incorrectly, every field the model expected was
+`null` at the top level, and `id`'s cast (`json['id'] as String`) is
+what `json_serializable` generates first, so it threw before `role`'s
+absence ever got the chance to. `role`'s absence was still a second,
+independent real bug (see below), just not the one that fired first in
+this particular crash — this correction matters because it means the
+mismatch was two separate wrong assumptions layered on top of each
+other, not one.
+
+Real raw `GET /auth/me` response (test account, fresh phone number,
+first-ever login → backend auto-created a new user row, see below):
+```json
+{
+  "status": "ok",
+  "message": "Data ditemukan",
+  "data": {
+    "id": 59, "name": "USER-789233", "email": "-", "nik": "-",
+    "alamat": "-", "no_telp": "6281211112222", "avatars": "",
+    "birth_date": "-", "wilayah_id": "-", "wilayah_name": "-"
+  },
+  "is_regis": false
+}
+```
+Concrete mismatches against `UserProfileModel.fromJson`'s assumption
+(`packages/authentication/lib/src/data/models/user_profile_model.dart`,
+which reads `id`/`email`/`role`/`name`/`avatars`/`nik`/`is_regis` all
+flat at the top level):
+- Most fields are nested one level under `data`, not flat — **except**
+  `is_regis`, which really is top-level, a sibling of `data` itself, not
+  inside it. A pure "just add `data`" unwrap is wrong; `is_regis` needs
+  special-casing.
+- `role` (`required String role` in the model) **does not appear
+  anywhere in the `/auth/me` response**, nested or flat — confirmed true
+  of the old app's own `UserModel` too (re-read in full: it never had a
+  `role` field either). It does exist, but only inside the JWT
+  `access_token` returned by
+  `/auth/login-otp` (decoded payload: `{"id":59,"name":"6281211112222",
+  "phone":"6281211112222","email":"-","role":"peserta","nik":"-",
+  "alamat":"-","foto":null,...}`) — so real role data means decoding the
+  JWT claims, not reading `/auth/me`, if a role is needed at login time.
+- `id` arrives as a JSON **number** (`59`), not a string — the model's
+  generated `fromJson` did `json['id'] as String`, a second independent
+  cast failure once the envelope-unwrap is fixed (this is the one that
+  actually threw first — see the correction above). The old app already
+  handled this correctly (`json['id'].toString()`); the migrated model
+  had silently dropped that conversion.
+- Real response has fields the model doesn't capture at all: `no_telp`,
+  `alamat`, `birth_date`, `wilayah_id`, `wilayah_name` — left uncaptured
+  deliberately (nothing in the app reads them yet); add them if/when a
+  feature needs them, not speculatively.
+- The JWT payload uses `foto` for the photo field where `/auth/me` uses
+  `avatars` — two different names for (presumably) the same concept
+  across the two endpoints, not yet reconciled.
+- `access_token`'s JWT confirms the previously-measured ~3600s/1hr TTL
+  again (`iat`/`exp` delta = 3600, matches the sibling `"expires_in":3600`
+  field) — consistent with the earlier TTL finding, not a new data point.
+
+**Permanent backend data created by this run, for cleanup/awareness**:
+phone `6281211112222` (test/dummy number, not a real person's), backend
+auto-created user **id `59`** (`name: "USER-789233"`, `is_regis: false`)
+on first successful OTP login — this looks like standard OTP-auth
+"auto-register on first login" behavior, not a bug, but it is a real,
+permanent row in the Development database now.
+
+**Fix** (`packages/authentication`): `AuthRemoteDataSource.getProfile()`
+now unwraps the real envelope itself (`{...envelope['data'], 'is_regis':
+envelope['is_regis']}`) before handing a flat map to
+`UserProfileModel.fromJson`, matching the old app's exact shape.
+`UserProfileModel.id` gets a custom `@JsonKey(fromJson: _idFromJson)`
+(`value.toString()`) instead of a bare cast, matching the old app's
+`json['id'].toString()`. `role` was **removed from `UserProfileModel`
+entirely** — it never belonged to this DTO — and `toEntity()` now takes
+`{required String role}` as a parameter; `AuthRepositoryImpl` decodes it
+from the access token's JWT payload (`_decodeRoleClaim`, a plain
+base64Url + `jsonDecode` on the middle segment, no signature
+verification — this app never verifies its own backend's tokens) in both
+`verifyOtp` (the token it just received) and `refreshProfile` (the
+currently-stored token), defaulting to `''` rather than inventing a
+value if decoding ever fails. `no_telp`/`alamat`/`birth_date`/
+`wilayah_*` and the `ApiClient` parser-exception-safety gap are both left
+as explicitly open, separate items — not silently folded into this fix.
+**Re-verified against the real backend after the fix**: the exact same
+login flow that crashed now succeeds end-to-end through
+`VerifyOtpUseCase` — `User(id: 59, email: -, role: peserta,
+isRegistered: false)`, `SessionProfile(avatar: , name: USER-569316, nik:
+-)`. Incidental finding from this second run: the placeholder display
+name for this still-unregistered account changed between the two logins
+(`USER-789233` → `USER-569316` for the same `id: 59`) — the backend
+appears to regenerate it per session rather than persisting one, not
+investigated further since nothing in the app currently depends on it
+being stable. Full workspace baseline stayed green (`authentication`:
+114/114, whole workspace: all green) after the fix.
+
+**11. 🔴 OPEN, found 2026-07-15 live-backend run — backend bug, not a
+migration bug: `POST /tes/create` (`createVoucher`) leaks a raw SQL
+error, including internal DB host/port/database/connection-pool name, to
+the client, triggered by a real unique-constraint collision in the
+backend's own voucher-code generator.** Real end-to-end call through
+`PaymentRepository.createVoucher()` (`packages/feature_payment`), real DI,
+real Development backend, fully valid form data (fetched live from
+`GET /tes/pertanyaan`, all 6 fields populated with real option codes —
+`psikologi`, `pendidikan`, `negara_tujuan`, `jenis_pekerjaan`,
+`asal_instansi` from that endpoint's own returned options; `kecamatan`
+had **zero options returned** for this account, so a placeholder string
+was used there, flagged as a separate open question below). The server
+returned:
+```
+Proses gagal: Gagal memproses data peserta. Data Gagal Diproses,
+SQLSTATE[23505]: Unique violation: 7 ERROR:  duplicate key value
+violates unique constraint "peserta_pkey"
+DETAIL:  Key (kode_voucher)=(U2JH8RAHQZ5YYGTE) already exists.
+(Connection: db_partner, Host: 192.168.0.80, Port: 5414,
+Database: pmi_assesmen, SQL: insert into "peserta" (...) values (...))
+```
+**Two separate real problems, not one:**
+1. **Information disclosure**: the full SQL statement, bound values,
+   internal DB host/port/database name, and the named connection pool
+   (`db_partner`) are returned verbatim in a client-facing error message
+   — this is backend infrastructure detail no client should ever see,
+   confirmed backend-side (Laravel/FrankenPHP per finding #9), not
+   something this app's code causes or can suppress from its side.
+2. **The collision itself**: `kode_voucher` is server-generated (this
+   app never supplies one), yet the generator produced a code
+   (`U2JH8RAHQZ5YYGTE`) that already exists in `peserta` — either a
+   weak-randomness/insufficient-entropy bug in the generator, or the
+   table already has enough rows that collisions are becoming likely.
+   Not something a retry-on-this-app's-side "fixes" at the root, even
+   though a retry would very likely succeed (a fresh call generates a
+   new candidate code).
+
+**Confirms the request payload itself was valid**: the interpolated SQL
+shows the submitted option codes were correctly resolved server-side to
+their display text before the insert was attempted (`pendidikan: '01'`
+→ `'Tamat SD/Sederajat'`, `negara_tujuan: '001'` → `'Malaysia'`,
+`asal_instansi` → `'AGESA ASA JAYA'`, etc.) — the insert failed **only**
+on the unique-constraint collision, not on any field this app sent being
+rejected. Also incidentally reveals several fields this app never
+submits are filled server-side from the authenticated session/API-key
+context, not the request body: `email_partner`, `jenis_kelamin`,
+`tujuan_tes`, `sektor_pekerjaan` all appear in the failed insert with
+concrete values despite not being in `formData` at all — worth knowing
+if a future feature ever needs to display or edit these.
+
+**Corrected after retrying, 2026-07-15 same session: this is NOT a
+transient random collision — it's a deterministic, permanent block for
+this specific account.** Retried `createVoucher` four more times total
+(once immediately, three more in a single follow-up run) across two
+separate process invocations several minutes apart: **every single
+attempt generated the exact same `kode_voucher=U2JH8RAHQZ5YYGTE`**, down
+to the same failed-insert SQL each time. A randomly-generated code would
+not repeat identically across five independent calls spanning multiple
+processes — the backend's generator is deriving this code
+deterministically from something stable about the account (most likely
+the user id or phone number), not rolling a fresh random value per
+request. That means **no retry from this app will ever succeed for this
+account** — `kode_voucher=U2JH8RAHQZ5YYGTE` already exists in `peserta`
+for a reason unrelated to this session's calls (a pre-existing row, seed
+data, or a prior partially-completed attempt), and the deterministic
+generator will keep recomputing the same colliding value every time.
+Unblocking this account requires backend-side intervention (fixing the
+generator's determinism, or resolving whatever already occupies that
+code) — not something retried past from the client. No voucher was
+created by any of the five attempts; nothing was committed to the
+database.
+
+**Definitively confirmed backend-wide, not account-specific, 2026-07-15
+same session**: logged in as a **second, independent test account**
+(phone `6281211113333`, backend auto-created user **id `60`**, a
+different row entirely from id 59) and called `createVoucher` with a
+freshly-built, valid `formData`. **Identical result: the exact same
+`kode_voucher=U2JH8RAHQZ5YYGTE`, same collision, same SQL error.** Two
+different user accounts producing the identical "randomly generated"
+code rules out any per-account derivation (id, phone, hash of either) —
+the generator is returning a fixed/stuck value regardless of who calls
+it, and that value already occupies a row in `peserta`. **`POST
+/tes/create` is currently broken for every account on this backend**,
+not a one-off. LANGKAH 2.5 (counseling, needs an active session) and
+LANGKAH 2.6 (test-taking, needs a ready voucher) are both unreachable as
+a direct consequence — there is no way to obtain a working voucher on
+this backend right now, from any account, until the backend developer
+fixes the generator.
+
+**Open, unrelated to the finding above**: `kecamatan`'s zero
+returned options from `GET /tes/pertanyaan` — either this field
+genuinely has no configured options for this backend/account yet, or its
+real options are meant to come from a cascading follow-up call this
+session didn't discover (the other 5 fields all returned populated
+option lists from the same single call). Not investigated further here.
+
 ---
 
 ## ✓ Resolved — `payment` status codes (was: open item above)
