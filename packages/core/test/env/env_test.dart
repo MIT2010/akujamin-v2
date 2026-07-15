@@ -10,17 +10,35 @@ void main() {
       expect(Env.current.isProd, isFalse);
     });
 
-    test('apiUrl pins the base URL to the configured API version', () {
-      expect(
-        Env.current.apiUrl,
-        '${Env.current.apiBaseUrl}/${Env.current.apiVersion}',
-      );
-      expect(Env.current.apiUrl, endsWith('/v1'));
+    test('apiVersion defaults to blank, and apiUrl is just <base>/api — a '
+        'version segment is opt-in per backend, not assumed (2026-07-14: '
+        'confirmed against a real backend with no versioning concept at '
+        'all, see joinApiUrl)', () {
+      expect(Env.current.apiVersion, isEmpty);
+      expect(Env.current.apiUrl, '${Env.current.apiBaseUrl}/api');
     });
 
     test('wsScheme is ws outside prod', () {
       expect(Env.current.isProd, isFalse);
       expect(Env.current.wsScheme, 'ws');
+    });
+  });
+
+  group('joinApiUrl', () {
+    test('omits the version segment when apiVersion is blank', () {
+      expect(
+        joinApiUrl('https://api.example.com', ''),
+        'https://api.example.com/api',
+      );
+    });
+
+    test('appends the version segment when apiVersion is set — a backend '
+        'that adopts versioning later needs only a flavors/*.json edit, not '
+        'a code change', () {
+      expect(
+        joinApiUrl('https://api.example.com', 'v2'),
+        'https://api.example.com/api/v2',
+      );
     });
   });
 }

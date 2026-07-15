@@ -141,7 +141,15 @@ copied here):**
 
 1. **Real network pipeline, zero mocking above the socket.** A real local
    `HttpServer` implementing `/v1/auth/send-otp`, `/v1/auth/login-otp`,
-   `/v1/auth/me`, hit through the real `SendOtpUseCase` → `VerifyOtpUseCase`
+   `/v1/auth/me` — **the `/v1/` prefix shown here was `Env.apiUrl`'s
+   assumed convention at the time, later proven wrong against the real
+   backend 2026-07-14 (see MIGRATION_LOG.md's permanent findings): the
+   real server has no versioning concept, the correct path is
+   `/api/auth/send-otp` etc. This test double matched the code's own
+   (incorrect) assumption, not the real server, so it never could have
+   caught this — recorded here as-is rather than rewritten, per this
+   file's own "evidence, not summary" standard.** — hit through the real
+   `SendOtpUseCase` → `VerifyOtpUseCase`
    → `AuthRepositoryImpl` → `AuthRemoteDataSource` → `ApiClient` → `Dio`
    chain (resolved from the real `configureDependencies()` DI graph, `Env`
    pointed at the local server via `--dart-define`). Confirmed: both calls

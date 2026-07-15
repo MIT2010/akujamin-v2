@@ -373,6 +373,36 @@ is actually built — needs a conscious "fix, don't port" decision like
 permanent finding #4, not an assumption that a commented-out line was
 intentional.
 
+**9. ✅ Resolved 2026-07-14 — `Env.apiUrl` pinned every request to a
+`/v1/` path segment that doesn't exist on the real backend at all,
+blocking every single migrated feature's network call. Found on the
+first-ever request to the real Development backend, this deep into the
+migration, because every prior "real network" test used a local
+`HttpServer` double that matched the code's own (wrong) assumption
+instead of the real server's routing.** `packages/core/lib/src/env/env.dart`'s
+`Env.apiUrl` getter computed `'$apiBaseUrl/$apiVersion'` (`apiVersion`
+defaulting to `'v1'`) — a versioned-API convention that was never derived
+from the old app (`akujamin-app`'s own `env.dart`/`dio_client.dart` have
+zero references to "version" anywhere, in a URL or a header) and was
+never verified against a real server until a live sanity check against
+`flavors/development.json`'s real backend: `GET /v1/faq/get` → 404,
+`GET /api/v1/faq/get` → 404, `GET /api/faq/get` (the old app's own exact,
+proven convention — see `about_api_service.dart`'s `'/api/faq/get'`) →
+`200 OK` with real FAQ data. The real backend has **no API versioning
+concept at all** — confirmed by its developer directly, not just inferred
+from the negative test. **Fix**: `Env.apiUrl` now always includes the
+real `/api` prefix, and only appends an extra version segment when
+`apiVersion` is non-empty (`joinApiUrl`, unit-tested for both branches) —
+`API_VERSION` stays a real key in every `flavors/*.json` (now blank, not
+deleted) so a future backend version bump is a config edit, not a code
+change. Blast radius of the fix itself is small (`env.dart` +
+`shared/di/register_module.dart`'s `Dio(BaseOptions(baseUrl: env.apiUrl))`
+are the only two call sites — every feature's datasource already goes
+through the one shared `Dio` instance, §10) even though the bug's own
+blast radius was total (100% of network calls, every migrated feature).
+See `docs/qa/auth_login.md`/`counseling.md`/`history.md` for the
+now-corrected notes on their own `/v1/`-based throwaway test evidence.
+
 ---
 
 ## ✓ Resolved — `payment` status codes (was: open item above)

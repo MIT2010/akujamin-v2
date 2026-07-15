@@ -2,7 +2,7 @@
   "FLAVOR": "dev",
   "APP_NAME": "Starter Kit Dev",
   "API_BASE_URL": "https://api-dev.example.com",
-  "API_VERSION": "v1",
+  "API_VERSION": "",
   "WS_HOST": "ws-dev.example.com",
   "WS_PORT": "6001",
   "WS_KEY": "your-pusher-app-key",

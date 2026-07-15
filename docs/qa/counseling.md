@@ -173,8 +173,14 @@ slice's scope. What **was** verified, and how:
 ## Real verification performed (two throwaway files, run then deleted)
 
 1. **Real network pipeline.** A real local `HttpServer` implementing
-   `/v1/chat/list`, `/v1/chat/detail-conversation`, `/v1/chat/send`, hit
-   through the real DI-resolved `CounselingRepository` and
+   `/v1/chat/list`, `/v1/chat/detail-conversation`, `/v1/chat/send` —
+   **the `/v1/` prefix was `Env.apiUrl`'s assumed convention at the time,
+   later proven wrong against the real backend 2026-07-14 (see
+   MIGRATION_LOG.md's permanent findings): the real server has no
+   versioning concept, the correct path is `/api/chat/list` etc. This
+   test double matched the code's own assumption, not the real server —
+   recorded as-is, not rewritten.** — hit through the real DI-resolved
+   `CounselingRepository` and
    `ChatRepository` chains (a plain `test()`, not `testWidgets()` — see
    [history.md](history.md)'s note on why `testWidgets()`'s
    `TestWidgetsFlutterBinding` blocks real HTTP). Confirmed: session list

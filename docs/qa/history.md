@@ -143,7 +143,13 @@ not the network call itself.
 ## Real verification (two throwaway files, run then deleted — same rule as prior features)
 
 1. **Real network pipeline.** A real local `HttpServer` implementing
-   `/v1/tes/list-voucher` and a `/cert.pdf` binary endpoint, hit through
+   `/v1/tes/list-voucher` and a `/cert.pdf` binary endpoint — **the `/v1/`
+   prefix was `Env.apiUrl`'s assumed convention at the time, later proven
+   wrong against the real backend 2026-07-14 (see MIGRATION_LOG.md's
+   permanent findings): the real server has no versioning concept, the
+   correct path is `/api/tes/list-voucher`. This test double matched the
+   code's own assumption, not the real server — recorded as-is, not
+   rewritten.** — hit through
    the real DI-resolved `HistoryRepository` → `HistoryRemoteDataSource` →
    `ApiClient` → `Dio` chain, and separately `CertificateRepository` →
    `CertificateRemoteDataSource` → the raw injected `Dio` (proving the

@@ -2,6 +2,20 @@
 /// URL in feature code — always read `Env.current`.
 enum Flavor { dev, staging, prod }
 
+/// Pure, unit-testable on its own — see [Env.apiUrl]. Always includes the
+/// `/api` prefix (confirmed against a real backend, 2026-07-14 —
+/// `<base>/api/<path>` resolves, `<base>/v1/<path>` and
+/// `<base>/api/v1/<path>` both 404): every project built from this kit so
+/// far talks to a Laravel-style backend that routes everything under
+/// `/api`, versioned or not. `apiVersion` is appended as an *extra*
+/// segment only when non-empty, so this same code works unchanged for a
+/// backend with no versioning concept (leave `API_VERSION` blank in
+/// `flavors/<flavor>.json`) and one that has it (set `API_VERSION` to
+/// whatever segment it expects, e.g. `v1`) — a `flavors/*.json` edit, not
+/// a code change, is what switches between the two.
+String joinApiUrl(String baseUrl, String apiVersion) =>
+    apiVersion.isEmpty ? '$baseUrl/api' : '$baseUrl/api/$apiVersion';
+
 class Env {
   final Flavor flavor;
   final String apiBaseUrl;
@@ -27,9 +41,11 @@ class Env {
     'API_BASE_URL',
     defaultValue: 'https://api.dev.example.com',
   );
+  // Blank by default, not 'v1' — a version segment is opt-in per backend,
+  // not assumed. See joinApiUrl's doc comment.
   static const _apiVersion = String.fromEnvironment(
     'API_VERSION',
-    defaultValue: 'v1',
+    defaultValue: '',
   );
   // Websocket (Pusher-protocol) config — added for feature_counseling, will
   // be shared by any future feature that also needs realtime (§1 "extract
@@ -51,8 +67,10 @@ class Env {
     wsKey: _wsKey,
   );
 
-  /// Base URL pinned to the API version, e.g. `https://api.dev.example.com/v1`.
-  String get apiUrl => '$apiBaseUrl/$apiVersion';
+  /// Base URL every API call is made against, e.g.
+  /// `https://api.dev.example.com/api` (no `API_VERSION` set) or
+  /// `https://api.dev.example.com/api/v1` (`API_VERSION=v1`).
+  String get apiUrl => joinApiUrl(apiBaseUrl, apiVersion);
 
   bool get isDev => flavor == Flavor.dev;
   bool get isStaging => flavor == Flavor.staging;

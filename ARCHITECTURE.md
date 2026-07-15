@@ -898,7 +898,7 @@ Conventional Commits (`feat:`, `fix:`, `chore:`) drive automatic changelog + sem
 
 - **App version:** SemVer (`MAJOR.MINOR.PATCH+BUILD`) in `pubspec.yaml`, bumped by `melos version` from Conventional Commits.
 - **Package versions (internal):** path-dependency during development (fast iteration, no publish step), switched to pinned git/pub versions only if a package is ever extracted for reuse in another project.
-- **API versioning:** the backend's concern, but the app pins to `/v1/` explicitly in `Env` — an API version bump is a config change, not a code change.
+- **API versioning:** the backend's concern, not something the app assumes. `Env.apiUrl` always includes `/api` (this backend's real, confirmed-2026-07-14 routing prefix) and appends `API_VERSION` as an extra segment only when it's non-empty — this project's own backend has no versioning concept at all (`API_VERSION` is blank in every `flavors/*.json`), so `apiUrl` resolves to `<base>/api`, no version segment. A future version bump on the backend side is a `flavors/*.json` edit (set `API_VERSION`), not a code change — see `packages/core/lib/src/env/env.dart`'s `joinApiUrl`.
 
 ---
 

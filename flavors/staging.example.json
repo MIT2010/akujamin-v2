@@ -2,7 +2,7 @@
   "FLAVOR": "staging",
   "APP_NAME": "Starter Kit Staging",
   "API_BASE_URL": "https://api-staging.example.com",
-  "API_VERSION": "v1",
+  "API_VERSION": "",
   "WS_HOST": "ws-staging.example.com",
   "WS_PORT": "6001",
   "WS_KEY": "staging-app-key",
