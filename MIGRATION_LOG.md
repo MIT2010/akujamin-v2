@@ -773,9 +773,39 @@ exact re-entrant scenario end-to-end (a real second `Dio` call to
 5-second `.timeout()` so a regression fails fast instead of hanging the
 suite — both pass, and the deadlock test completes near-instantly, not
 anywhere near its timeout. Full workspace baseline (`melos run
-analyze`, `melos run test`) stayed green. Live re-verification (real
-Chrome, intentionally-wrong credentials, after the user hot-restarts)
-still pending as of this entry.
+analyze`, `melos run test`) stayed green. **Live re-verification
+confirmed 2026-07-16**: real Chrome, hard reload, login with
+intentionally-wrong credentials — exactly one `POST /auth/login` call
+in the console (401), no `/auth/refresh` call at all (previously always
+followed by a second, also-401ing call), Login button returned to its
+normal state instead of staying stuck, and a SnackBar appeared. Finding
+#16 below documents a second, separate bug this same live check
+surfaced.
+
+**16. ✅ Resolved 2026-07-16 — the SnackBar shown on a failed login
+always read "Session expired", even for a fresh login attempt with
+wrong credentials that had never had a session to expire.** Found
+during finding #15's live re-verification: the real backend's 401 body
+for the wrong-credentials attempt was `{"status": "nok", "message":
+"Email atau password salah"}`, but the user only ever saw the generic
+"Session expired" text. Root cause:
+`packages/core/lib/src/error/failure.dart`'s `UnauthorizedFailure` took
+no message parameter at all (`const UnauthorizedFailure() : super
+('Session expired')`), and `ApiClient._mapDioError`'s 401 branch always
+constructed a bare `UnauthorizedFailure()`, discarding the response
+body entirely — unlike the neighboring 500 branch, which already
+extracted the server's own message via `_extractMessage`. **Fix**: gave
+`UnauthorizedFailure` an optional message parameter defaulting to
+`'Session expired'` (a super parameter, `[super.message = 'Session
+expired']`, so every existing `const UnauthorizedFailure()` call site
+in tests keeps its old behavior unchanged), and made the 401 branch
+pass `_extractMessage(e.response?.data) ?? 'Session expired'` through
+the same way the 500 branch already did. A genuinely expired session on
+a protected endpoint (401 body with no message) still falls back to the
+generic text; a 401 that does carry a specific reason — wrong
+credentials or otherwise — now shows that reason instead. Two new
+`api_client_test.dart` cases cover both paths. Full workspace baseline
+(`melos run analyze`, `melos run test`) stayed green.
 
 ---
 
