@@ -19,14 +19,32 @@ class RefreshTokenInterceptor extends Interceptor {
 
   static const _refreshRetriedKey = 'refreshRetried';
 
+  /// Endpoints that never carry an access token in the first place, so a
+  /// 401 from them must never enter the refresh-and-retry branch below.
+  /// `/auth/refresh` is the load-bearing entry here — real bug, found
+  /// 2026-07-16 during live UI testing: without this exclusion, a failed
+  /// login's 401 triggered a refresh attempt, and that refresh call's own
+  /// 401 re-entered this exact `onError` (same interceptor instance, same
+  /// `Dio`), recursing into awaiting the very `_refreshing` Future it was
+  /// itself a step of. Neither the login nor the refresh request's
+  /// handler was ever resolved/rejected, so both hung forever — visible
+  /// as a login button whose spinner never stops and no error shown.
+  static const _excludedPaths = {
+    '/auth/login',
+    '/auth/refresh',
+    '/auth/send-otp',
+    '/auth/login-otp',
+  };
+
   Future<bool>? _refreshing;
 
   @override
   void onError(DioException err, ErrorInterceptorHandler handler) async {
     final isUnauthorized = err.response?.statusCode == 401;
     final alreadyRetried = err.requestOptions.extra[_refreshRetriedKey] == true;
+    final isExcluded = _excludedPaths.contains(err.requestOptions.path);
 
-    if (!isUnauthorized || alreadyRetried) {
+    if (!isUnauthorized || alreadyRetried || isExcluded) {
       return handler.next(err);
     }
 
