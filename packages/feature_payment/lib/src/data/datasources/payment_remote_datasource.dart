@@ -50,13 +50,24 @@ class PaymentRemoteDataSource {
     );
   }
 
+  /// `imagePath` is nullable to match the old app's own
+  /// `PaymentApiService.sendPayment({MultipartFile? param})` -- real gap,
+  /// found 2026-07-16 during the akujamin-app comparison audit: resuming
+  /// a payment whose proof was already uploaded in a previous session
+  /// still has to reach this endpoint (the old app always calls it,
+  /// passing `null` for `bukti` when there's nothing new to upload) so
+  /// the server can move the voucher into review. `FormData.fromMap`
+  /// (Dio) omits a `null` entry entirely, so passing `null` here sends
+  /// the exact same empty-`bukti` request the old app does.
   Future<Result<Failure, Map<String, dynamic>>> sendPayment(
-    String imagePath,
+    String? imagePath,
   ) async {
     return _client.multipart<Map<String, dynamic>>(
       '/tes/kirim-pembayaran',
       data: FormData.fromMap({
-        'bukti': await MultipartFile.fromFile(imagePath),
+        'bukti': imagePath == null
+            ? null
+            : await MultipartFile.fromFile(imagePath),
       }),
       parser: (json) => json as Map<String, dynamic>,
     );

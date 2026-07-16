@@ -84,7 +84,7 @@ class PaymentRepositoryImpl implements PaymentRepository {
   }
 
   @override
-  Future<Result<Failure, void>> sendPayment(String imagePath) async {
+  Future<Result<Failure, void>> sendPayment(String? imagePath) async {
     final result = await _remote.sendPayment(imagePath);
 
     return result.fold(Err.new, (envelope) {

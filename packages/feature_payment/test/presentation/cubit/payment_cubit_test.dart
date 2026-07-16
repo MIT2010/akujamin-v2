@@ -231,6 +231,53 @@ void main() {
     );
   });
 
+  group('PaymentCubit.submitPayment — resume with an existing proof', () {
+    blocTest<PaymentCubit, PaymentState>(
+      'still calls the server with a null image, matching the old app — '
+      'real gap, found 2026-07-16 during the akujamin-app comparison '
+      'audit: this used to jump straight to PaymentStep.review locally, '
+      'never reaching the server at all, unlike PaymentStateCubit.'
+      'submitPayment (hasExistingProof branch), which always calls '
+      'SendPaymentUsecase with a null file so the server can still act on '
+      'the resume (e.g. move the voucher into review)',
+      setUp: () {
+        when(
+          () => repository.sendPayment(any()),
+        ).thenAnswer((_) async => const Ok(null));
+      },
+      build: build,
+      seed: () => const PaymentState(
+        pickedImagePath: null,
+        existingProofUrl: 'https://example.com/proof.jpg',
+      ),
+      act: (cubit) => cubit.submitPayment(),
+      verify: (cubit) {
+        verify(() => repository.sendPayment(null)).called(1);
+        expect(cubit.state.step, PaymentStep.review);
+      },
+    );
+
+    blocTest<PaymentCubit, PaymentState>(
+      'a failure resuming with an existing proof surfaces as isFailed, '
+      'same as a failure on a fresh upload',
+      setUp: () {
+        when(
+          () => repository.sendPayment(any()),
+        ).thenAnswer((_) async => const Err(NetworkFailure()));
+      },
+      build: build,
+      seed: () => const PaymentState(
+        pickedImagePath: null,
+        existingProofUrl: 'https://example.com/proof.jpg',
+      ),
+      act: (cubit) => cubit.submitPayment(),
+      verify: (cubit) {
+        expect(cubit.state.isFailed, isTrue);
+        expect(cubit.state.step, isNot(PaymentStep.review));
+      },
+    );
+  });
+
   group('PaymentCubit.disconnectSocket — approved fix', () {
     // `blocTest` always calls `close()` on the built cubit at the end of
     // the test, which itself calls `disconnectSocket()` again — a real

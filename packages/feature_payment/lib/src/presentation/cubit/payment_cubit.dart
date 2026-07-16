@@ -198,6 +198,19 @@ class PaymentCubit extends Cubit<PaymentState> {
     emit(state.copyWith(pickedImagePath: null));
   }
 
+  /// Real gap, found 2026-07-16 during the akujamin-app comparison audit:
+  /// resuming a payment with an already-uploaded proof (`pickedImagePath
+  /// == null && existingProofUrl != null`) used to skip
+  /// `_repository.sendPayment` entirely and jump straight to
+  /// [PaymentStep.review] locally. The old app's equivalent
+  /// (`PaymentStateCubit.submitPayment`, `hasUploadedProof` vs
+  /// `hasExistingProof`) always calls the server in that case too,
+  /// passing `null` for the file -- if `/tes/kirim-pembayaran` does
+  /// anything server-side beyond storing a file (e.g. flipping the
+  /// voucher into review, notifying the assigned psychologist), the old
+  /// call path was the only one that actually triggered it. Restored to
+  /// match: the network call is unconditional now, only the multipart
+  /// file itself is optional.
   Future<void> submitPayment() async {
     final path = state.pickedImagePath;
     if (path == null && state.existingProofUrl == null) {
@@ -212,11 +225,6 @@ class PaymentCubit extends Cubit<PaymentState> {
       return;
     }
 
-    if (path == null) {
-      emit(state.copyWith(step: PaymentStep.review));
-      return;
-    }
-
     emit(state.copyWith(isLoading: true, isFailed: false));
     final result = await _repository.sendPayment(path);
 
@@ -225,7 +233,7 @@ class PaymentCubit extends Cubit<PaymentState> {
         emit(state.copyWith(isLoading: false, isFailed: true, error: failure));
       },
       (_) async {
-        await _cleanupProofImage(path);
+        if (path != null) await _cleanupProofImage(path);
         emit(
           state.copyWith(
             isLoading: false,

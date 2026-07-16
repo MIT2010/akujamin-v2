@@ -25,7 +25,10 @@ abstract class PaymentRepository {
     String psychologistId,
   );
 
-  Future<Result<Failure, void>> sendPayment(String imagePath);
+  /// `imagePath` is nullable so a resume-with-existing-proof still
+  /// reaches the server (see `PaymentRemoteDataSource.sendPayment`'s doc
+  /// comment) instead of being handled entirely client-side.
+  Future<Result<Failure, void>> sendPayment(String? imagePath);
 
   Future<Result<Failure, PaymentCheckResult>> checkPayment();
 
