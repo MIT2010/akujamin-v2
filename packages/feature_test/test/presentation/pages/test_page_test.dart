@@ -194,6 +194,75 @@ void main() {
     expect(find.text('Jawaban tidak boleh kosong.'), findsOneWidget);
   });
 
+  testWidgets(
+    'shows the early-warning icon during the 2-10s grace window, before '
+    'any full-screen block appears -- real gap, found 2026-07-16 during '
+    'the akujamin-app comparison audit: the old app gives a persistent '
+    'visible signal as soon as showWarning flips true, well before '
+    'isViolation blocks the screen at 10s',
+    (tester) async {
+      when(() => testCubit.state).thenReturn(
+        TestState(status: TestStatus.doing, tests: [testEntity], steps: [step]),
+      );
+      when(
+        () => testCubit.stream,
+      ).thenAnswer((_) => const Stream<TestState>.empty());
+      when(() => proctoringCubit.state).thenReturn(
+        const ProctoringState.detecting(
+          status: AttentionStatus.noFace,
+          showWarning: true,
+        ),
+      );
+
+      await tester.pumpWidget(harness());
+      await tester.pump();
+
+      expect(find.byIcon(Icons.visibility_off), findsOneWidget);
+      // isViolation is still false at this point -- the block overlay
+      // must not have appeared yet.
+      expect(find.text('Wajah tidak terdeteksi'), findsNothing);
+    },
+  );
+
+  testWidgets(
+    'shows a one-shot SnackBar the moment showWarning first flips true, '
+    'not on every subsequent tick while still in the warning window',
+    (tester) async {
+      when(() => testCubit.state).thenReturn(
+        TestState(status: TestStatus.doing, tests: [testEntity], steps: [step]),
+      );
+      when(
+        () => testCubit.stream,
+      ).thenAnswer((_) => const Stream<TestState>.empty());
+      whenListen(
+        proctoringCubit,
+        Stream.fromIterable([
+          const ProctoringState.detecting(
+            status: AttentionStatus.noFace,
+            showWarning: true,
+            error: 'Wajah tidak terdeteksi.',
+          ),
+          const ProctoringState.detecting(
+            status: AttentionStatus.noFace,
+            showWarning: true,
+            violationDuration: Duration(seconds: 3),
+            error: 'Wajah tidak terdeteksi.',
+          ),
+        ]),
+        initialState: const ProctoringState.detecting(),
+      );
+
+      await tester.pumpWidget(harness());
+      await tester.pump();
+      await tester.pump();
+
+      expect(
+        find.widgetWithText(SnackBar, 'Wajah tidak terdeteksi.'),
+        findsOneWidget,
+      );
+    },
+  );
+
   testWidgets('a done status navigates to the result page', (tester) async {
     whenListen(
       testCubit,

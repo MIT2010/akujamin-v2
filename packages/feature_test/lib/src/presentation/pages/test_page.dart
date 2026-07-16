@@ -6,8 +6,10 @@ import 'package:shared/shared.dart';
 
 import '../../domain/entities/question_step.dart';
 import '../cubit/proctoring_cubit.dart';
+import '../cubit/proctoring_state.dart';
 import '../cubit/test_cubit.dart';
 import '../cubit/test_state.dart';
+import '../widgets/proctoring_status_indicator.dart';
 import '../widgets/question_view.dart';
 import '../widgets/test_done_popup.dart';
 import '../widgets/test_info_view.dart';
@@ -43,9 +45,33 @@ class TestView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return BlocListener<TestCubit, TestState>(
-      listenWhen: (p, c) => p.status != c.status || p.showPopup != c.showPopup,
-      listener: _handleSideEffect,
+    return MultiBlocListener(
+      listeners: [
+        BlocListener<TestCubit, TestState>(
+          listenWhen: (p, c) =>
+              p.status != c.status || p.showPopup != c.showPopup,
+          listener: _handleSideEffect,
+        ),
+        // Ported from the old app's test_page.dart (`listenWhen: (p, c) =>
+        // c.showWarning && !p.showWarning`) -- real gap, found 2026-07-16
+        // during the akujamin-app comparison audit: fires exactly once per
+        // rising edge into the 2-10s warning window, same as
+        // ProctoringStatusIndicator's icon but as a one-shot toast rather
+        // than a persistent signal.
+        BlocListener<ProctoringCubit, ProctoringState>(
+          listenWhen: (p, c) => c.isWarning && !p.isWarning,
+          listener: (context, state) {
+            final message = state is ProctoringDetecting ? state.error : null;
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text(
+                  message ?? 'Silakan tetap berada di depan layar.',
+                ),
+              ),
+            );
+          },
+        ),
+      ],
       child: Scaffold(
         appBar: AppBar(title: const Text('Tes')),
         body: const Stack(children: [_TestBody(), ViolationOverlay()]),
@@ -104,6 +130,7 @@ class _TestBody extends StatelessWidget {
         return Column(
           children: [
             const TestProgressHeader(),
+            const ProctoringStatusIndicator(),
             Expanded(
               child: state.showIntro
                   ? _buildIntro(context, state, step)

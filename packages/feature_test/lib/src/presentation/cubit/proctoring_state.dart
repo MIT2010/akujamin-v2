@@ -30,3 +30,14 @@ sealed class ProctoringState with _$ProctoringState {
     required String message,
   }) = ProctoringCameraUnavailable;
 }
+
+/// Whether this state currently satisfies the 2s grace-period warning
+/// condition — consumed by both [ProctoringStatusIndicator]'s persistent
+/// icon and [TestView]'s one-shot toast listener, kept in one place so
+/// the two can't drift out of sync on what "warning" means.
+extension ProctoringStateX on ProctoringState {
+  bool get isWarning => switch (this) {
+    ProctoringDetecting(:final showWarning) => showWarning,
+    ProctoringCameraUnavailable() => false,
+  };
+}
