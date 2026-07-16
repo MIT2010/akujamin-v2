@@ -725,6 +725,58 @@ DI-level "LANGKAH 1B" fallback pattern used everywhere else in this
 project's live-backend testing cannot surface UI-layer bugs like these
 by construction, only backend/wiring-layer ones (see findings #9-#11).
 
+**15. ✅ Resolved 2026-07-16 — a failed email/password login (wrong
+credentials, real 401) left the Login button's spinner stuck forever,
+with no error SnackBar ever shown.** Found the same session as findings
+#12-#13 (real Chrome, live login attempt with intentionally-wrong
+credentials against the real Development backend). `LoginCubit`,
+`LoginState`, and `LoginPage`'s `BlocConsumer` were all read and
+confirmed correct — the bug was never reachable that far. **Root
+cause**: a genuine `Future` deadlock inside
+`packages/core/lib/src/network/interceptors/refresh_token_interceptor.dart`.
+`RefreshTokenInterceptor` is registered on the one app-wide `Dio`
+singleton (`packages/shared/lib/src/di/register_module.dart`), and its
+own `onRefreshToken` callback (`tokenRefresher.refresh` →
+`AuthCubit.refresh()` → `AuthRepositoryImpl.refreshToken()` →
+`AuthRemoteDataSource.refreshToken()`) makes its `/auth/refresh` HTTP
+call through that exact same `Dio` instance — so a 401 on `/auth/login`
+triggers `onError`, which starts awaiting a single in-flight refresh via
+`_refreshing ??= _refresh()`; that refresh's own `/auth/refresh` call
+then also 401s, which re-enters the same interceptor's `onError` on the
+same instance, which itself tries to await the very `_refreshing` Future
+it is a dependency of. Neither `onError` invocation ever calls
+`handler.next()/resolve()/reject()`, so Dio's request Future for
+`/auth/login` never settles — never throws, never resolves — hanging
+`ApiClient.post()` → `AuthRemoteDataSource.login()` →
+`AuthRepositoryImpl.login()` → `LoginUseCase` → the
+`await _loginUseCase(...)` line in `LoginCubit.submit()`, which is why
+`result.fold(...)` is never reached and the state never leaves
+`loading()`. Matches the live console evidence exactly: 401 on
+`/auth/login`, then 401 on `/auth/refresh`, then total silence — no
+third network call, because the interceptor is permanently parked
+mid-`await`. **Fix**: added a static `_excludedPaths` set
+(`/auth/login`, `/auth/refresh`, `/auth/send-otp`, `/auth/login-otp` —
+endpoints that never carry an access token in the first place) checked
+before the refresh branch in `onError`; `/auth/refresh` being in that
+set is what actually breaks the deadlock, since the refresh call's own
+401 now short-circuits straight to `handler.next(err)` instead of
+re-entering the awaited-`_refreshing` branch. Also flagged, not fixed
+this round: `register_module.dart`'s `Dio(BaseOptions(baseUrl: ...))`
+sets no `connectTimeout`/`receiveTimeout` anywhere, which is why the
+spinner hung *forever* rather than for some bounded number of seconds —
+a real gap, deliberately left out of scope here since the interceptor
+fix addresses the actual defect. Verified via two new regression tests
+in `refresh_token_interceptor_test.dart`: one confirms `/auth/login`'s
+401 never triggers a refresh attempt at all, the other reproduces the
+exact re-entrant scenario end-to-end (a real second `Dio` call to
+`/auth/refresh` through the same instance, also 401ing) wrapped in a
+5-second `.timeout()` so a regression fails fast instead of hanging the
+suite — both pass, and the deadlock test completes near-instantly, not
+anywhere near its timeout. Full workspace baseline (`melos run
+analyze`, `melos run test`) stayed green. Live re-verification (real
+Chrome, intentionally-wrong credentials, after the user hot-restarts)
+still pending as of this entry.
+
 ---
 
 ## ✓ Resolved — `payment` status codes (was: open item above)
