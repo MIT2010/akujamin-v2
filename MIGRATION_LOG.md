@@ -628,6 +628,80 @@ real options are meant to come from a cascading follow-up call this
 session didn't discover (the other 5 fields all returned populated
 option lists from the same single call). Not investigated further here.
 
+**12. ✅ Resolved 2026-07-16 — `SendOtpUseCase`/`VerifyOtpUseCase` never
+stripped a leading `0` before prefixing the phone number with `62`,
+malforming the number for the single most common way an Indonesian
+phone number is actually typed.** Found via real UI testing (Claude in
+Chrome against the actual Chrome browser, not the sandboxed preview —
+see finding #14 below for why that distinction mattered): typing
+`081211112222` into the OTP login field (the natural way, leading `0`)
+produced a real `send-otp` request with `"phone_number":
+"62081211112222"` — 14 digits, not the correct 13-digit
+`6281211112222` — because both use cases did `'62$phone'`
+unconditionally, with zero normalization of whatever the user actually
+typed. **Real, severe consequence, not cosmetic**: the backend silently
+accepted the malformed number (200 OK) and created a permanent account
+under it. This dev backend echoes the OTP directly in its response
+(no real SMS/WhatsApp delivery), which is the only reason login still
+"worked" during testing — in production, with real OTP delivery, this
+would send the code to a phone number that doesn't exist, breaking
+login outright for most real users, not just mangling a display string.
+**Fix**: a new pure function, `normalizePhoneNumber()`
+(`packages/authentication/lib/src/domain/normalize_phone_number.dart`)
+strips a leading `0` before prefixing with `62`, leaves a number that
+already starts with `62` untouched (defensive against a pasted
+already-prefixed number), and both use cases now call it instead of
+inlining `'62$phone'`. **Verified two ways**: 5 new/updated unit tests
+(leading `0`, no leading `0`, already-`62`, whitespace), and a live
+re-run of the exact scenario that broke against the real Development
+backend — `send-otp` for `081211112222` now sends
+`"phone_number": "6281211112222"`, confirmed via the detailed request
+logging finding #3 already added. Full workspace baseline stayed green.
+
+**13. ✅ Resolved 2026-07-16 — the transient `AuthInitial` loading
+screen threw a caught-but-noisy "Could not navigate to initial route:
+'/login'" Flutter framework exception on every render.** Found the same
+session as finding #12 (browser console, real Chrome). Root cause:
+`apps/mobile/lib/src/app.dart`'s `AuthInitial` branch (added
+2026-07-14 to fix a real login-flash bug, see the file's own doc
+comment) builds a **bare `MaterialApp`** — not `.router` like the rest
+of the app — while `AuthCubit._restoreCachedSession()` is still
+resolving. Without an explicit `initialRoute`, Flutter's classic
+`Navigator` tries to resolve its initial route from
+`PlatformDispatcher.defaultRouteName` (the browser's URL at page load,
+e.g. `/login`) against a route table that only declares `home` — no
+match, so `Navigator.defaultGenerateInitialRoutes` throws this exact
+caught exception every time the branch renders (it recurred multiple
+times per session: cold load, right after OTP login, again on
+navigating to `/register` — meaning `AuthCubit` re-enters `AuthInitial`
+more than once, not investigated further here since it doesn't change
+the fix). **Effect was already harmless** (`home` renders regardless,
+the fallback to `/` is silent to the user) — this was a real but
+low-severity defect, fixed for console cleanliness and code
+correctness, not because anything visible was broken. **Fix**: added
+`initialRoute: '/'` to that `MaterialApp`, which always resolves
+cleanly to `home` and skips the failed platform-route lookup entirely.
+Verified via `melos run analyze` (0 issues, 13 packages) and
+`melos run test` (all green) — a live-browser re-check of the console
+specifically was not completed this session (would need the user to
+hot-restart their own separately-running `flutter run -d chrome`
+process, which this session has no terminal access to).
+
+**14. Environment note, not a code finding — live UI testing became
+possible for the first time this session via Claude's own "Claude in
+Chrome" connector (the user's real, separately-installed Chrome
+browser), not the sandboxed Browser-pane preview used throughout the
+rest of this session.** The sandboxed preview's Skia/CanvasKit
+rendering hangs indefinitely in this specific environment (documented
+repeatedly earlier in this project's session history, e.g.
+`docs/qa/about.md`) — real Chrome has no such limitation and rendered
+and accepted input normally. Findings #12 and #13 above were only
+discoverable through actual UI interaction (typing into the phone
+field the way a real user would, reading the live console) — the
+DI-level "LANGKAH 1B" fallback pattern used everywhere else in this
+project's live-backend testing cannot surface UI-layer bugs like these
+by construction, only backend/wiring-layer ones (see findings #9-#11).
+
 ---
 
 ## ✓ Resolved — `payment` status codes (was: open item above)
