@@ -45,6 +45,25 @@ void main() {
     },
   );
 
+  test('strips a leading 0 before prefixing with 62 -- real bug, found '
+      '2026-07-16: typing a phone number the normal Indonesian way '
+      '(leading 0) used to produce a malformed 62081234567890', () async {
+    when(
+      () =>
+          repository.verifyOtp(phoneNumber: '6281234567890', otpCode: '123456'),
+    ).thenAnswer((_) async => const Ok((user, sessionProfile)));
+
+    final result = await useCase(
+      const VerifyOtpParams(phoneNumber: '081234567890', otpCode: '123456'),
+    );
+
+    expect(result.isOk, isTrue);
+    verify(
+      () =>
+          repository.verifyOtp(phoneNumber: '6281234567890', otpCode: '123456'),
+    ).called(1);
+  });
+
   test(
     'returns a ValidationFailure without calling the repository when the phone is empty',
     () async {

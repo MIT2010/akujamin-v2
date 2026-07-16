@@ -10,6 +10,7 @@ export 'src/di/register_module.dart';
 export 'src/domain/entities/session_profile.dart';
 export 'src/domain/entities/user.dart';
 export 'src/domain/normalize_extracted_field.dart';
+export 'src/domain/normalize_phone_number.dart';
 export 'src/domain/repositories/auth_repository.dart';
 export 'src/domain/usecases/complete_registration_usecase.dart';
 export 'src/domain/usecases/login_usecase.dart';

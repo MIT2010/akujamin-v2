@@ -1,6 +1,7 @@
 import 'package:core/core.dart';
 import 'package:injectable/injectable.dart';
 
+import '../normalize_phone_number.dart';
 import '../repositories/auth_repository.dart';
 
 /// §21 — justified as a UseCase, not a Cubit-calls-repository skip: the old
@@ -24,7 +25,7 @@ class SendOtpUseCase implements UseCase<DateTime, SendOtpParams> {
     if (phone.length < 9) {
       return const Err(ValidationFailure('Nomor telepon minimal 9 digit.'));
     }
-    return _repository.sendOtp(phoneNumber: '62$phone');
+    return _repository.sendOtp(phoneNumber: normalizePhoneNumber(phone));
   }
 }
 

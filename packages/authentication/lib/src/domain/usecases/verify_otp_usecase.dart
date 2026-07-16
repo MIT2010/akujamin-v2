@@ -3,6 +3,7 @@ import 'package:injectable/injectable.dart';
 
 import '../entities/session_profile.dart';
 import '../entities/user.dart';
+import '../normalize_phone_number.dart';
 import '../repositories/auth_repository.dart';
 
 /// §21 — same justification as [SendOtpUseCase]: the old app's
@@ -34,7 +35,7 @@ class VerifyOtpUseCase
       return const Err(ValidationFailure('Kode OTP tidak boleh kosong.'));
     }
     return _repository.verifyOtp(
-      phoneNumber: '62${params.phoneNumber}',
+      phoneNumber: normalizePhoneNumber(params.phoneNumber),
       otpCode: params.otpCode,
     );
   }
