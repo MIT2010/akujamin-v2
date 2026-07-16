@@ -658,34 +658,57 @@ backend — `send-otp` for `081211112222` now sends
 `"phone_number": "6281211112222"`, confirmed via the detailed request
 logging finding #3 already added. Full workspace baseline stayed green.
 
-**13. ✅ Resolved 2026-07-16 — the transient `AuthInitial` loading
-screen threw a caught-but-noisy "Could not navigate to initial route:
-'/login'" Flutter framework exception on every render.** Found the same
-session as finding #12 (browser console, real Chrome). Root cause:
+**13. ✅ Resolved 2026-07-16 (two fix attempts; the first did not
+actually work) — the transient `AuthInitial` loading screen threw a
+caught-but-noisy "Could not navigate to initial route: '/login'"
+Flutter framework exception on every render.** Found the same session
+as finding #12 (browser console, real Chrome). Root cause:
 `apps/mobile/lib/src/app.dart`'s `AuthInitial` branch (added
 2026-07-14 to fix a real login-flash bug, see the file's own doc
 comment) builds a **bare `MaterialApp`** — not `.router` like the rest
 of the app — while `AuthCubit._restoreCachedSession()` is still
-resolving. Without an explicit `initialRoute`, Flutter's classic
-`Navigator` tries to resolve its initial route from
-`PlatformDispatcher.defaultRouteName` (the browser's URL at page load,
-e.g. `/login`) against a route table that only declares `home` — no
-match, so `Navigator.defaultGenerateInitialRoutes` throws this exact
-caught exception every time the branch renders (it recurred multiple
-times per session: cold load, right after OTP login, again on
-navigating to `/register` — meaning `AuthCubit` re-enters `AuthInitial`
-more than once, not investigated further here since it doesn't change
-the fix). **Effect was already harmless** (`home` renders regardless,
-the fallback to `/` is silent to the user) — this was a real but
-low-severity defect, fixed for console cleanliness and code
-correctness, not because anything visible was broken. **Fix**: added
-`initialRoute: '/'` to that `MaterialApp`, which always resolves
-cleanly to `home` and skips the failed platform-route lookup entirely.
-Verified via `melos run analyze` (0 issues, 13 packages) and
-`melos run test` (all green) — a live-browser re-check of the console
-specifically was not completed this session (would need the user to
-hot-restart their own separately-running `flutter run -d chrome`
-process, which this session has no terminal access to).
+resolving, and only declares `home` for `"/"`. **First fix attempt
+(wrong, verified only via `analyze`/`test`, never live)**: added
+`initialRoute: '/'`, on the assumption that Flutter's `Navigator`
+resolves its initial route from `PlatformDispatcher.defaultRouteName`
+only when `initialRoute` is left unset. Re-tested live after the user
+hot-restarted and a *genuinely* hard-reloaded browser (confirmed via
+`read_network_requests` showing a fresh 1000+-script fetch, not a
+same-origin hash-only navigation) — **the exact same exception still
+fired**, proving the diagnosis was incomplete. Root-caused for real by
+reading Flutter 3.44.4's own pinned SDK source
+(`packages/flutter/lib/src/widgets/app.dart`,
+`_WidgetsAppState._initialRouteName`):
+
+```dart
+// If window.defaultRouteName isn't '/', we should assume it was set
+// intentionally via `setInitialRoute`, and should override whatever is in
+// [widget.initialRoute].
+String get _initialRouteName =>
+    WidgetsBinding.instance.platformDispatcher.defaultRouteName != Navigator.defaultRouteName
+    ? WidgetsBinding.instance.platformDispatcher.defaultRouteName
+    : widget.initialRoute ?? WidgetsBinding.instance.platformDispatcher.defaultRouteName;
+```
+
+Flutter **deliberately discards `MaterialApp.initialRoute`** whenever
+the browser's current URL isn't `/` — intentional deep-linking support,
+not a bug in Flutter. Since this app boots straight into `#/login`
+(hash routing), `initialRoute: '/'` was silently ignored every time,
+and the platform's own `/login` kept getting handed to
+`defaultGenerateInitialRoutes`, which still only had `home` for `/` and
+kept throwing. **Effect was already harmless** (`home` renders
+regardless, the fallback to `/` is silent to the user) — this was a
+real but low-severity defect, fixed for console cleanliness and code
+correctness, not because anything visible was broken. **Real fix**:
+replaced `initialRoute: '/'` with a catch-all `onGenerateRoute` on that
+same `MaterialApp`, so *any* requested route name — "/login", "/home",
+whatever the browser's URL happened to be — resolves to the loading
+screen instead of failing route-table lookup. Verified via
+`melos run analyze` (0 issues, 13 packages), `melos run test` (all
+green), and — unlike the first attempt — a genuine live re-check: two
+independent hard-reloads (`Ctrl+Shift+R`, each confirmed by a fresh
+1819-script DDC load and a fresh console timestamp) on `#/login`,
+neither producing the exception.
 
 **14. Environment note, not a code finding — live UI testing became
 possible for the first time this session via Claude's own "Claude in
