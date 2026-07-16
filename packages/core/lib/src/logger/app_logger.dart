@@ -15,12 +15,14 @@ enum LogChannel { api, bloc, nav, repo }
 /// output (`ConsoleOutput`) ultimately calls `print()`, which Flutter's
 /// tooling *does* relay to the terminal on every platform, web included —
 /// this is what actually fixes the visibility gap, not just a cosmetic
-/// swap. `SimplePrinter` keeps output to one line per call, close to the
-/// original format, rather than `logger`'s default multi-line boxed
-/// `PrettyPrinter` (noisy for a steady stream of API method+URI lines).
+/// swap. Uses `PrettyPrinter` (boxed, multi-line, colored) rather than a
+/// bare one-liner specifically so app-emitted log lines are visually
+/// unmistakable against Flutter's own framework/debug console noise —
+/// the whole point of a named-channel logger is lost if its output looks
+/// like everything else scrolling past it.
 @lazySingleton
 class AppLogger {
-  AppLogger() : _logger = Logger(printer: SimplePrinter(colors: true));
+  AppLogger() : _logger = Logger(printer: PrettyPrinter(colors: true));
 
   final Logger _logger;
 

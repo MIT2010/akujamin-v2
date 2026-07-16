@@ -186,6 +186,27 @@ Cubit or repository while working on this feature later — that's a
 distinct, easy-to-reintroduce mistake this note exists to head off before
 it happens, not after.
 
+**Update, 2026-07-15 — the "stays body-free" mechanism above is no
+longer true, by explicit request, not drift.** While live-testing
+against the real Development backend, request/response bodies turned
+out to be genuinely useful for local debugging (e.g. reading `otp_code`
+straight out of a real `send-otp` response instead of a manual
+throwaway test). Asked directly whether full body logging was really
+wanted given this exact finding's history — the answer was yes,
+explicitly, fully aware of the tradeoff. `LoggingInterceptor` now logs
+full request/response bodies (`FormData` fields/files listed by name,
+not raw multipart bytes; `Map`/`List`/JSON-string bodies pretty-printed)
+plus headers, status text, and per-call duration. Two things still hold:
+(1) still gated by `enabled`/`Env.isDev` exactly as before — never fires
+in staging/prod; (2) the `Authorization` header is still redacted even
+here (`Bearer ***`) — a session token is a different risk category
+(hijack) than this app's own domain data, and nothing asked for it to
+be shown. **This finding's own "new rule" above (never add an ad-hoc
+debug print of a raw answer/transcript) is unaffected and still stands**
+— it was always about code *outside* this one shared interceptor; this
+update only changes what the one, single, reviewed logging chokepoint
+itself does.
+
 **Extended for `register`, 2026-07-12** — see
 [docs/qa/register.md](docs/qa/register.md) §3: `/registrasi/ktp`'s
 **response** body is the extracted KTP fields themselves (full name, NIK,
