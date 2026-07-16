@@ -73,7 +73,7 @@ melos:
       run: melos exec -- fvm flutter clean
       description: "OVERRIDE built-in melos clean -- pastikan proses clean tiap package pakai SDK yang di-pin FVM, bukan flutter global yang mungkin beda versi"
     upgrade:
-      run: fvm flutter pub upgrade
+      run: fvm flutter pub upgrade --major-versions
       description: "Upgrade dependency ke versi terbaru yang masih sesuai constraint pubspec"
     outdated:
       run: fvm flutter pub outdated
