@@ -46,6 +46,21 @@ class App extends StatelessWidget {
             return MaterialApp(
               theme: AppTheme.light(),
               darkTheme: AppTheme.dark(),
+              // Explicit, not left to default to
+              // PlatformDispatcher.defaultRouteName -- real bug, found
+              // 2026-07-16 during live web testing: this is a bare
+              // Navigator-based MaterialApp (no routerConfig, unlike the
+              // go_router one below), so without this, Flutter's Navigator
+              // tries to resolve its initial route from whatever the
+              // browser's URL was at page load (e.g. '/login') against a
+              // route table that only declares `home`, throws a caught
+              // "Could not navigate to initial route" FlutterError every
+              // time this branch is entered, and falls back to '/' anyway
+              // -- harmless in effect (`home` always renders regardless),
+              // but a real, avoidable, noisy console error. Pinning
+              // initialRoute to '/' here skips that failed lookup
+              // entirely, since '/' always resolves to `home`.
+              initialRoute: '/',
               home: const Scaffold(
                 body: Center(child: CircularProgressIndicator()),
               ),
