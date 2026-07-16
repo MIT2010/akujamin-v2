@@ -807,6 +807,59 @@ credentials or otherwise — now shows that reason instead. Two new
 `api_client_test.dart` cases cover both paths. Full workspace baseline
 (`melos run analyze`, `melos run test`) stayed green.
 
+**17. ✅ Resolved 2026-07-16 — four high-priority gaps from a full
+akujamin-app vs akujamin-v2 comparison audit, each a real, user-visible
+capability loss rather than a cosmetic simplification.** The audit
+(design system, navigation/auth-gating, and the four highest-risk
+features — auth/payment/test/counseling — each explored in depth and
+cross-checked against current source, not just against this log) is
+summarized in a published report; these four findings were the ones
+flagged "sangat direkomendasikan" and fixed the same session:
+
+- **OTP resend/countdown had no counterpart at all.** `OtpLoginState`
+  already carried `expiresAt`, but the screen never rendered a
+  countdown or a resend control — a delayed/failed first SMS left the
+  user with no way to retry from that screen. Fixed with a
+  self-contained `_ResendCountdown` widget (own `Timer`, ticks off
+  `expiresAt`) and a new `OtpLoginCubit.resendOtp()` that updates
+  `expiresAt` in place without emitting the disruptive `sendingOtp`
+  state (commit `6c3fb15`).
+- **Resuming a payment with an already-uploaded proof skipped the
+  server call entirely.** The old app's `PaymentStateCubit.
+  submitPayment` always calls `/tes/kirim-pembayaran` in this case too,
+  passing a null file — if that endpoint does anything server-side
+  beyond storing a file, this app silently never triggered it. Fixed by
+  making `sendPayment`'s `imagePath` nullable end to end and making the
+  network call in `submitPayment` unconditional (commit `04d351f`).
+- **No early-warning signal during proctoring's 2–10s grace window.**
+  `ProctoringCubit` already emitted `showWarning` at 2s, but nothing
+  rendered it — the only feedback was `ViolationOverlay`'s full-screen
+  block at 10s, giving a drifting participant zero chance to self-
+  correct before a violation was recorded. Fixed with a persistent
+  `ProctoringStatusIndicator` icon plus a one-shot `BlocListener` toast
+  on the rising edge, matching the old app's `BlinkingFaceStatus` +
+  `showSnack` pair (commit `1bdc738`).
+- **The mandatory first-launch onboarding gate wasn't replicated.** The
+  old app's router forces every not-yet-logged-in route to
+  `/onboarding` on a genuine first launch — including the real
+  camera/KTP consent copy on its last slide — before a guest ever
+  reaches `/login`. This app only ever reached `/onboarding` manually,
+  from an already-authenticated Home icon, meaning a real first-time
+  user never saw it. Fixed with a new `FirstLaunchGate` abstraction in
+  `shared` (same cross-package pattern as `AuthSession`), adapted by
+  `feature_onboarding`'s existing `OnboardingLocalDataSource`; `AppRouter.
+  _redirect` now gates on it exactly while `!loggedIn && isFirstLaunch`
+  (commit `09b6ac8`).
+
+All four verified via new unit/widget tests (cubit-level and, for the
+onboarding gate, a real fully-DI-wired app-boot test proving an unseeded
+first launch actually lands on the carousel) plus a full workspace
+baseline (`melos run gen`/`analyze`/`test`) after each. Not fixed this
+round, deliberately deferred as lower-priority per the audit: the design
+system's color/typography/token/asset gap (needs real brand assets, not
+something to synthesize), and the cosmetic per-screen styling losses
+(branded page header, dashed upload border, colored history-card status).
+
 ---
 
 ## ✓ Resolved — `payment` status codes (was: open item above)
