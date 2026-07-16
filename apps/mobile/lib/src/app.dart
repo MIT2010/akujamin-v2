@@ -46,23 +46,30 @@ class App extends StatelessWidget {
             return MaterialApp(
               theme: AppTheme.light(),
               darkTheme: AppTheme.dark(),
-              // Explicit, not left to default to
-              // PlatformDispatcher.defaultRouteName -- real bug, found
-              // 2026-07-16 during live web testing: this is a bare
-              // Navigator-based MaterialApp (no routerConfig, unlike the
-              // go_router one below), so without this, Flutter's Navigator
-              // tries to resolve its initial route from whatever the
-              // browser's URL was at page load (e.g. '/login') against a
-              // route table that only declares `home`, throws a caught
-              // "Could not navigate to initial route" FlutterError every
-              // time this branch is entered, and falls back to '/' anyway
-              // -- harmless in effect (`home` always renders regardless),
-              // but a real, avoidable, noisy console error. Pinning
-              // initialRoute to '/' here skips that failed lookup
-              // entirely, since '/' always resolves to `home`.
-              initialRoute: '/',
-              home: const Scaffold(
-                body: Center(child: CircularProgressIndicator()),
+              // Real bug, found 2026-07-16 during live web testing, and
+              // root-caused by reading Flutter 3.44.4's own source
+              // (widgets/app.dart, _WidgetsAppState._initialRouteName): on
+              // web, WidgetsApp *deliberately* overrides `initialRoute`
+              // with `PlatformDispatcher.defaultRouteName` whenever the
+              // browser's current URL isn't "/", to support deep linking.
+              // Since this app uses hash routing, a hard reload on
+              // `#/login` makes "/login" the actual initial route this
+              // bare Navigator-based MaterialApp is asked to resolve --
+              // and since it only declares `home` for "/", that lookup
+              // fails and throws a caught "Could not navigate to initial
+              // route" FlutterError every time. Setting `initialRoute:
+              // '/'` (the first fix attempted here) has no effect, since
+              // WidgetsApp ignores it in exactly this situation -- verified
+              // by re-testing after a genuine hard reload and seeing the
+              // same warning fire again. The real fix: a catch-all
+              // `onGenerateRoute` so *any* requested route name --
+              // "/login", "/home", whatever the browser's URL happened to
+              // be -- resolves to this same loading screen instead of
+              // failing route-table lookup.
+              onGenerateRoute: (settings) => MaterialPageRoute<void>(
+                builder: (context) => const Scaffold(
+                  body: Center(child: CircularProgressIndicator()),
+                ),
               ),
             );
           }
