@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:design_system/design_system.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -87,23 +89,29 @@ class OtpLoginViewState extends State<OtpLoginView> {
               _OtpEntryForm(
                 controller: _otpController,
                 phoneNumber: phoneNumber,
+                expiresAt: expiresAt,
                 loading: false,
                 onSubmit: () => context.read<OtpLoginCubit>().verifyOtp(
                   phoneNumber: phoneNumber,
                   otpCode: _otpController.text,
                   expiresAt: expiresAt,
                 ),
+                onResend: () =>
+                    context.read<OtpLoginCubit>().resendOtp(phoneNumber),
               ),
             OtpLoginVerifyingOtp(:final phoneNumber, :final expiresAt) =>
               _OtpEntryForm(
                 controller: _otpController,
                 phoneNumber: phoneNumber,
+                expiresAt: expiresAt,
                 loading: true,
                 onSubmit: () => context.read<OtpLoginCubit>().verifyOtp(
                   phoneNumber: phoneNumber,
                   otpCode: _otpController.text,
                   expiresAt: expiresAt,
                 ),
+                onResend: () =>
+                    context.read<OtpLoginCubit>().resendOtp(phoneNumber),
               ),
             OtpLoginVerifyOtpFailure(
               :final failure,
@@ -113,6 +121,7 @@ class OtpLoginViewState extends State<OtpLoginView> {
               _OtpEntryForm(
                 controller: _otpController,
                 phoneNumber: phoneNumber,
+                expiresAt: expiresAt,
                 loading: false,
                 errorText: failure.message,
                 onSubmit: () => context.read<OtpLoginCubit>().verifyOtp(
@@ -120,6 +129,8 @@ class OtpLoginViewState extends State<OtpLoginView> {
                   otpCode: _otpController.text,
                   expiresAt: expiresAt,
                 ),
+                onResend: () =>
+                    context.read<OtpLoginCubit>().resendOtp(phoneNumber),
               ),
             OtpLoginSuccessState() => const Center(
               child: CircularProgressIndicator(),
@@ -165,15 +176,19 @@ class _PhoneEntryForm extends StatelessWidget {
 class _OtpEntryForm extends StatelessWidget {
   final TextEditingController controller;
   final String phoneNumber;
+  final DateTime expiresAt;
   final bool loading;
   final String? errorText;
   final VoidCallback onSubmit;
+  final VoidCallback onResend;
 
   const _OtpEntryForm({
     required this.controller,
     required this.phoneNumber,
+    required this.expiresAt,
     required this.loading,
     required this.onSubmit,
+    required this.onResend,
     this.errorText,
   });
 
@@ -192,7 +207,78 @@ class _OtpEntryForm extends StatelessWidget {
         ),
         const SizedBox(height: AppSpacing.md),
         AppButton(label: 'Verifikasi', loading: loading, onPressed: onSubmit),
+        const SizedBox(height: AppSpacing.sm),
+        const Text('Belum dapat kode?', textAlign: TextAlign.center),
+        _ResendCountdown(expiresAt: expiresAt, onResend: onResend),
       ],
+    );
+  }
+}
+
+/// Ported from the old app's `otp_page.dart` countdown/resend `TextButton`
+/// (`AuthStateCubit._startCountdown`/`_tick`) -- real gap, found
+/// 2026-07-16: this had no counterpart at all until now. Owns its own
+/// `Timer` locally (ticks purely off wall-clock time against `expiresAt`,
+/// already present in [OtpLoginState]) instead of threading a live
+/// countdown through the cubit's state, since nothing else in this app's
+/// business logic needs to know the remaining seconds -- only this one
+/// button's enabled/disabled label does.
+class _ResendCountdown extends StatefulWidget {
+  const _ResendCountdown({required this.expiresAt, required this.onResend});
+
+  final DateTime expiresAt;
+  final VoidCallback onResend;
+
+  @override
+  State<_ResendCountdown> createState() => _ResendCountdownState();
+}
+
+class _ResendCountdownState extends State<_ResendCountdown> {
+  Timer? _timer;
+
+  @override
+  void initState() {
+    super.initState();
+    _restartTicking();
+  }
+
+  @override
+  void didUpdateWidget(covariant _ResendCountdown oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    // A successful resend moves `expiresAt` forward -- restart the tick
+    // loop so a stale, already-cancelled Timer from the previous
+    // countdown doesn't leave the button permanently stuck.
+    if (oldWidget.expiresAt != widget.expiresAt) _restartTicking();
+  }
+
+  void _restartTicking() {
+    _timer?.cancel();
+    _timer = Timer.periodic(const Duration(seconds: 1), (_) {
+      if (mounted) setState(() {});
+    });
+  }
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final remaining = widget.expiresAt.difference(DateTime.now());
+    final isExpired = remaining.isNegative;
+    if (isExpired) _timer?.cancel();
+
+    final clamped = isExpired ? Duration.zero : remaining;
+    final minutes = clamped.inMinutes.remainder(60).toString().padLeft(2, '0');
+    final seconds = clamped.inSeconds.remainder(60).toString().padLeft(2, '0');
+
+    return TextButton(
+      onPressed: isExpired ? widget.onResend : null,
+      child: Text(
+        isExpired ? 'Kirim Ulang' : 'Kirim ulang dalam $minutes:$seconds',
+      ),
     );
   }
 }

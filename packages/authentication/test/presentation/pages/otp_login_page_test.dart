@@ -44,6 +44,7 @@ void main() {
     cubit = _MockOtpLoginCubit();
     when(() => cubit.state).thenReturn(const OtpLoginState.phoneEntry());
     when(() => cubit.sendOtp(any())).thenAnswer((_) async {});
+    when(() => cubit.resendOtp(any())).thenAnswer((_) async {});
     when(
       () => cubit.verifyOtp(
         phoneNumber: any(named: 'phoneNumber'),
@@ -140,6 +141,57 @@ void main() {
 
     expect(find.text('home-page'), findsOneWidget);
   });
+
+  testWidgets(
+    'the resend button is disabled and shows a countdown before expiry',
+    (tester) async {
+      final futureExpiry = DateTime.now().add(const Duration(minutes: 2));
+      whenListen(
+        cubit,
+        const Stream<OtpLoginState>.empty(),
+        initialState: OtpLoginState.otpEntry(
+          phoneNumber: '81234567890',
+          expiresAt: futureExpiry,
+        ),
+      );
+
+      await tester.pumpWidget(harness(cubit));
+
+      expect(find.text('Kirim Ulang'), findsNothing);
+      expect(find.textContaining('Kirim ulang dalam'), findsOneWidget);
+      final button = tester.widget<TextButton>(find.byType(TextButton));
+      expect(button.onPressed, isNull);
+
+      // Dispose the widget tree so _ResendCountdown's Timer.periodic is
+      // cancelled -- otherwise the test fails with a pending-timer error
+      // since this countdown never reaches expiry on its own here.
+      await tester.pumpWidget(const SizedBox.shrink());
+    },
+  );
+
+  testWidgets(
+    'tapping "Kirim Ulang" once expired calls OtpLoginCubit.resendOtp -- '
+    'real gap, found 2026-07-16 during the akujamin-app comparison audit: '
+    'this button had no counterpart at all until now',
+    (tester) async {
+      final pastExpiry = DateTime.now().subtract(const Duration(seconds: 1));
+      whenListen(
+        cubit,
+        const Stream<OtpLoginState>.empty(),
+        initialState: OtpLoginState.otpEntry(
+          phoneNumber: '81234567890',
+          expiresAt: pastExpiry,
+        ),
+      );
+
+      await tester.pumpWidget(harness(cubit));
+
+      expect(find.text('Kirim Ulang'), findsOneWidget);
+      await tester.tap(find.text('Kirim Ulang'));
+
+      verify(() => cubit.resendOtp('81234567890')).called(1);
+    },
+  );
 
   testWidgets('shows the failure message when verifyOtp fails', (tester) async {
     whenListen(

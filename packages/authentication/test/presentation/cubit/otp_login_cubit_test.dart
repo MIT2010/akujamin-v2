@@ -133,6 +133,47 @@ void main() {
   );
 
   blocTest<OtpLoginCubit, OtpLoginState>(
+    'resendOtp emits a fresh otpEntry directly, without a sendingOtp step '
+    'in between -- real gap, found 2026-07-16 during the akujamin-app '
+    'comparison audit: going through sendOtp for a resend would flip the '
+    'OTP-entry screen back to the phone-entry form for a moment, since '
+    'sendingOtp always renders that form',
+    build: () {
+      when(
+        () => sendOtpUseCase(any()),
+      ).thenAnswer((_) async => Ok(expiresAt.add(const Duration(minutes: 2))));
+      return OtpLoginCubit(sendOtpUseCase, verifyOtpUseCase, authCubit);
+    },
+    seed: () => OtpLoginState.otpEntry(
+      phoneNumber: '81234567890',
+      expiresAt: expiresAt,
+    ),
+    act: (cubit) => cubit.resendOtp('81234567890'),
+    expect: () => [
+      OtpLoginState.otpEntry(
+        phoneNumber: '81234567890',
+        expiresAt: expiresAt.add(const Duration(minutes: 2)),
+      ),
+    ],
+  );
+
+  blocTest<OtpLoginCubit, OtpLoginState>(
+    'resendOtp emits sendOtpFailure when the resend itself fails',
+    build: () {
+      when(
+        () => sendOtpUseCase(any()),
+      ).thenAnswer((_) async => const Err(NetworkFailure()));
+      return OtpLoginCubit(sendOtpUseCase, verifyOtpUseCase, authCubit);
+    },
+    seed: () => OtpLoginState.otpEntry(
+      phoneNumber: '81234567890',
+      expiresAt: expiresAt,
+    ),
+    act: (cubit) => cubit.resendOtp('81234567890'),
+    expect: () => [const OtpLoginState.sendOtpFailure(NetworkFailure())],
+  );
+
+  blocTest<OtpLoginCubit, OtpLoginState>(
     'backToPhoneEntry resets to phoneEntry',
     build: () => OtpLoginCubit(sendOtpUseCase, verifyOtpUseCase, authCubit),
     seed: () => OtpLoginState.otpEntry(
