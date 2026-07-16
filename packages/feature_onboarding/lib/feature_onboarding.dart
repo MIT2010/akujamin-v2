@@ -6,6 +6,7 @@
 /// UseCase-on-a-real-network-write test stays open — see MIGRATION_LOG.md.
 library;
 
+export 'src/data/datasources/first_launch_gate_adapter.dart';
 export 'src/data/datasources/onboarding_local_datasource.dart';
 export 'src/data/repositories/onboarding_repository_impl.dart';
 export 'src/domain/repositories/onboarding_repository.dart';

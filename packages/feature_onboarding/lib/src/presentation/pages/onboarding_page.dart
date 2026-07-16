@@ -30,12 +30,15 @@ class OnboardingPage extends StatelessWidget {
 /// `PageController` + `NeverScrollableScrollPhysics` + `nextPage()`
 /// shape, kept here for direct behavior traceability.
 ///
-/// **Known, tracked simplification** (see docs/qa/onboarding.md): the old
-/// app auto-showed this before login on a real first launch, gated by
-/// `AuthStateCubit`'s router redirect. This migrated version is reachable
-/// via a manual entry point instead (ADR-010's minimal-wiring bar), same
-/// as every other migrated feature so far — full router-redirect
-/// integration is deferred, not silently dropped.
+/// **Fixed 2026-07-16, no longer just a manual entry point** (see
+/// docs/qa/onboarding.md and the akujamin-app comparison audit):
+/// `AppRouter`'s redirect now replicates the old app's real router-level
+/// gate — an unauthenticated, genuine-first-launch session is forced
+/// here automatically, the same way `AuthStateCubit`'s redirect did in
+/// the old app (`FirstLaunchGate`, `shared`/`packages/shared/lib/src/
+/// router/first_launch_gate.dart`). The manual entry point (an icon on
+/// Home) still exists as an additional way to reach this page once
+/// already authenticated, same as before.
 class OnboardingView extends StatefulWidget {
   const OnboardingView({super.key});
 

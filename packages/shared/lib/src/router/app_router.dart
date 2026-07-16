@@ -6,6 +6,7 @@ import 'app_route.dart';
 import 'app_shell.dart';
 import 'auth_session.dart';
 import 'feature_routes.dart';
+import 'first_launch_gate.dart';
 import 'go_router_refresh_stream.dart';
 import 'not_found_page.dart';
 
@@ -23,8 +24,9 @@ import 'not_found_page.dart';
 @lazySingleton
 class AppRouter {
   final AuthSession _authSession;
+  final FirstLaunchGate _firstLaunchGate;
 
-  AppRouter(this._authSession);
+  AppRouter(this._authSession, this._firstLaunchGate);
 
   /// Routes outside the persistent bottom nav, e.g. `/login`. Must be set
   /// before [router] is first read.
@@ -61,6 +63,24 @@ class AppRouter {
     final status = _authSession.status;
     final loggedIn = status.isAuthenticated;
     final loggingIn = state.matchedLocation == '/login';
+
+    // Real gap, found 2026-07-16 during the akujamin-app comparison
+    // audit: the old app's redirect forces every not-yet-logged-in
+    // route to `/onboarding` on a genuine first launch, before the
+    // guest is even allowed to reach `/login` (`app_routes.dart`).
+    // Scoped to the not-yet-logged-in case only, matching the old app's
+    // own effective behavior — its `isFirstLaunch` flag only ever
+    // coexists with `unauthenticated` in practice, since it's cleared
+    // during `getProfile()`'s success path, well before a session could
+    // ever be restored as authenticated with the flag still set. Once
+    // `OnboardingCubit.complete()` clears the flag (or the user logs
+    // in), this stops firing and `/onboarding` reverts to being redirected
+    // like any other non-guest route below — exactly the old app's
+    // "only a guest destination while still first-launch" behavior, not
+    // a permanent guest allowance.
+    if (!loggedIn && _firstLaunchGate.isFirstLaunch) {
+      return state.matchedLocation == '/onboarding' ? null : '/onboarding';
+    }
 
     if (!loggedIn && !loggingIn) return '/login';
     if (loggedIn && loggingIn) return '/home';

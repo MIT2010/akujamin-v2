@@ -33,5 +33,6 @@ export 'src/router/app_router.dart';
 export 'src/router/app_shell.dart';
 export 'src/router/auth_session.dart';
 export 'src/router/feature_routes.dart';
+export 'src/router/first_launch_gate.dart';
 export 'src/router/go_router_refresh_stream.dart';
 export 'src/router/not_found_page.dart';

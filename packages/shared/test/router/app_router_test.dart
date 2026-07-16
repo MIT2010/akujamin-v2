@@ -37,6 +37,19 @@ class _StreamingFakeAuthSession implements AuthSession {
   }
 }
 
+class _FakeFirstLaunchGate implements FirstLaunchGate {
+  _FakeFirstLaunchGate(this.isFirstLaunch);
+
+  @override
+  bool isFirstLaunch;
+}
+
+/// The default for every test below that isn't specifically exercising
+/// the first-launch onboarding gate — matches `AlwaysCompletedFirstLaunchGate`
+/// (`shared`'s own no-op default), so none of the existing redirect/role/
+/// shell behavior below changes.
+final _notFirstLaunch = _FakeFirstLaunchGate(false);
+
 final _standaloneRoutes = <RouteBase>[
   GoRoute(
     path: '/',
@@ -49,6 +62,10 @@ final _standaloneRoutes = <RouteBase>[
   GoRoute(
     path: '/home',
     builder: (context, state) => const Scaffold(body: Text('home-page')),
+  ),
+  GoRoute(
+    path: '/onboarding',
+    builder: (context, state) => const Scaffold(body: Text('onboarding-page')),
   ),
 ];
 
@@ -98,6 +115,7 @@ void main() {
     testWidgets('redirects an unauthenticated user to /login', (tester) async {
       final appRouter = AppRouter(
         _FakeAuthSession(AuthSessionStatus.unauthenticated),
+        _notFirstLaunch,
       )..standaloneRoutes = _standaloneRoutes;
 
       await tester.pumpWidget(
@@ -113,6 +131,7 @@ void main() {
       (tester) async {
         final appRouter = AppRouter(
           _FakeAuthSession(const AuthSessionStatus(isAuthenticated: true)),
+          _notFirstLaunch,
         )..standaloneRoutes = _standaloneRoutes;
 
         await tester.pumpWidget(
@@ -129,6 +148,7 @@ void main() {
     ) async {
       final appRouter = AppRouter(
         _FakeAuthSession(const AuthSessionStatus(isAuthenticated: true)),
+        _notFirstLaunch,
       )..standaloneRoutes = _standaloneRoutes;
 
       await tester.pumpWidget(
@@ -146,6 +166,7 @@ void main() {
     ) async {
       final appRouter = AppRouter(
         _FakeAuthSession(const AuthSessionStatus(isAuthenticated: true)),
+        _notFirstLaunch,
       )..standaloneRoutes = _standaloneRoutes;
 
       await tester.pumpWidget(
@@ -166,6 +187,7 @@ void main() {
       (tester) async {
         final appRouter = AppRouter(
           _FakeAuthSession(const AuthSessionStatus(isAuthenticated: true)),
+          _notFirstLaunch,
         )..standaloneRoutes = _standaloneRoutesWithoutRoot;
 
         await tester.pumpWidget(
@@ -184,6 +206,7 @@ void main() {
       (tester) async {
         final appRouter = AppRouter(
           _FakeAuthSession(const AuthSessionStatus(isAuthenticated: true)),
+          _notFirstLaunch,
         )..standaloneRoutes = _standaloneRoutesWithoutRoot;
 
         await tester.pumpWidget(
@@ -197,6 +220,96 @@ void main() {
     );
   });
 
+  group('AppRouter redirect — first-launch onboarding gate', () {
+    // Real gap, found 2026-07-16 during the akujamin-app comparison
+    // audit: the old app's router forces every not-yet-logged-in route
+    // to /onboarding on a genuine first launch — this group proves
+    // AppRouter now replicates that, not just OnboardingCubit's own
+    // manual-entry-point behavior.
+    testWidgets('forces an unauthenticated, first-launch user to /onboarding, '
+        'regardless of which route they land on', (tester) async {
+      final appRouter = AppRouter(
+        _FakeAuthSession(AuthSessionStatus.unauthenticated),
+        _FakeFirstLaunchGate(true),
+      )..standaloneRoutes = _standaloneRoutesWithoutRoot;
+
+      await tester.pumpWidget(
+        MaterialApp.router(routerConfig: appRouter.router),
+      );
+      appRouter.router.go('/login');
+      await tester.pumpAndSettle();
+
+      expect(find.text('login-page'), findsNothing);
+    });
+
+    testWidgets(
+      'lets a first-launch guest actually stay on /onboarding once there '
+      '— the gate must redirect them there, not bounce them off it too',
+      (tester) async {
+        final appRouter = AppRouter(
+          _FakeAuthSession(AuthSessionStatus.unauthenticated),
+          _FakeFirstLaunchGate(true),
+        )..standaloneRoutes = _standaloneRoutes;
+
+        await tester.pumpWidget(
+          MaterialApp.router(routerConfig: appRouter.router),
+        );
+        await tester.pumpAndSettle();
+
+        expect(find.text('onboarding-page'), findsOneWidget);
+      },
+    );
+
+    testWidgets(
+      'does not gate an authenticated user even if the first-launch flag '
+      'is somehow still set — matches the old app\'s own effective '
+      'behavior, since its flag is cleared during getProfile() well '
+      'before a session could restore as authenticated with it still on',
+      (tester) async {
+        final appRouter = AppRouter(
+          _FakeAuthSession(const AuthSessionStatus(isAuthenticated: true)),
+          _FakeFirstLaunchGate(true),
+        )..standaloneRoutes = _standaloneRoutes;
+
+        await tester.pumpWidget(
+          MaterialApp.router(routerConfig: appRouter.router),
+        );
+        await tester.pumpAndSettle();
+
+        expect(find.text('root-page'), findsOneWidget);
+        expect(find.text('onboarding-page'), findsNothing);
+      },
+    );
+
+    testWidgets(
+      'stops gating to /onboarding once the flag clears mid-session — '
+      'the exact transition OnboardingCubit.complete() drives',
+      (tester) async {
+        final gate = _FakeFirstLaunchGate(true);
+        final authSession = _StreamingFakeAuthSession();
+        final appRouter = AppRouter(authSession, gate)
+          ..standaloneRoutes = _standaloneRoutes;
+
+        await tester.pumpWidget(
+          MaterialApp.router(routerConfig: appRouter.router),
+        );
+        await tester.pumpAndSettle();
+        expect(find.text('onboarding-page'), findsOneWidget);
+
+        gate.isFirstLaunch = false;
+        // GoRouter's redirect only re-evaluates on a navigation event or
+        // a refreshListenable tick — flipping the plain fake field alone
+        // doesn't trigger either, so drive one explicitly the same way a
+        // real "Mulai" tap would (attempting to leave the page).
+        appRouter.router.go('/login');
+        await tester.pumpAndSettle();
+
+        expect(find.text('login-page'), findsOneWidget);
+        expect(find.text('onboarding-page'), findsNothing);
+      },
+    );
+  });
+
   group('AppRouter role guard', () {
     testWidgets(
       'redirects away from a role-guarded route when the user lacks the role',
@@ -205,6 +318,7 @@ void main() {
           _FakeAuthSession(
             const AuthSessionStatus(isAuthenticated: true, roles: ['user']),
           ),
+          _notFirstLaunch,
         )..standaloneRoutes = _roleGuardedRoutes;
 
         await tester.pumpWidget(
@@ -225,6 +339,7 @@ void main() {
         _FakeAuthSession(
           const AuthSessionStatus(isAuthenticated: true, roles: ['admin']),
         ),
+        _notFirstLaunch,
       )..standaloneRoutes = _roleGuardedRoutes;
 
       await tester.pumpWidget(
@@ -244,6 +359,7 @@ void main() {
       final appRouter =
           AppRouter(
               _FakeAuthSession(const AuthSessionStatus(isAuthenticated: true)),
+              _notFirstLaunch,
             )
             ..standaloneRoutes = [
               GoRoute(
@@ -271,6 +387,7 @@ void main() {
       final appRouter =
           AppRouter(
               _FakeAuthSession(const AuthSessionStatus(isAuthenticated: true)),
+              _notFirstLaunch,
             )
             ..standaloneRoutes = [
               GoRoute(
@@ -302,7 +419,8 @@ void main() {
 
     setUp(() {
       authSession = _StreamingFakeAuthSession();
-      appRouter = AppRouter(authSession)..standaloneRoutes = _standaloneRoutes;
+      appRouter = AppRouter(authSession, _notFirstLaunch)
+        ..standaloneRoutes = _standaloneRoutes;
     });
 
     testWidgets(
