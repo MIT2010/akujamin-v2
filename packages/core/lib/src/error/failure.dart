@@ -24,7 +24,17 @@ final class ValidationFailure extends Failure {
 }
 
 final class UnauthorizedFailure extends Failure {
-  const UnauthorizedFailure() : super('Session expired');
+  /// Defaults to a generic message for the case a 401's body carries none
+  /// (e.g. a genuinely expired session on a protected endpoint) -- real
+  /// bug, found 2026-07-16: this used to be a fixed message with no
+  /// parameter at all, so a *fresh* login attempt failing with a real,
+  /// specific backend reason (e.g. "Email atau password salah") still
+  /// showed the user "Session expired", which is actively misleading for
+  /// someone who was never logged in to begin with. See
+  /// `ApiClient._mapDioError`, the only production caller, which now
+  /// passes the backend's own message through when the response body has
+  /// one.
+  const UnauthorizedFailure([super.message = 'Session expired']);
 }
 
 /// Distinguishes *why* a camera operation failed — added so a caller can

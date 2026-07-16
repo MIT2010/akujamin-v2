@@ -105,7 +105,9 @@ class ApiClient {
       DioExceptionType.receiveTimeout ||
       DioExceptionType.sendTimeout => const NetworkFailure(),
       DioExceptionType.badResponse when e.response?.statusCode == 401 =>
-        const UnauthorizedFailure(),
+        UnauthorizedFailure(
+          _extractMessage(e.response?.data) ?? 'Session expired',
+        ),
       DioExceptionType.badResponse => ServerFailure(
         _extractMessage(e.response?.data) ?? 'Server error',
         statusCode: e.response?.statusCode,

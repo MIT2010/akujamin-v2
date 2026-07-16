@@ -69,10 +69,32 @@ void main() {
       expect((result as Ok<Failure, bool>).value, isTrue);
     });
 
-    test('maps a 401 response to UnauthorizedFailure', () async {
-      final dio = _buildDio(
-        (options) async => _jsonBody({'message': 'unauth'}, 401),
-      );
+    test(
+      'maps a 401 response to UnauthorizedFailure carrying the backend\'s '
+      'own message -- real bug, found 2026-07-16: this used to always be '
+      'the fixed "Session expired" text, so a fresh failed login attempt '
+      '(e.g. "Email atau password salah") showed a misleading message',
+      () async {
+        final dio = _buildDio(
+          (options) async => _jsonBody({'message': 'unauth'}, 401),
+        );
+        final client = ApiClient(dio);
+
+        final result = await client.get<Map>(
+          '/thing',
+          parser: (json) => json as Map,
+        );
+
+        expect(result.isErr, isTrue);
+        final failure = (result as Err<Failure, Map>).failure;
+        expect(failure, isA<UnauthorizedFailure>());
+        expect(failure.message, 'unauth');
+      },
+    );
+
+    test('falls back to the generic "Session expired" message when a 401 '
+        'response carries no message field', () async {
+      final dio = _buildDio((options) async => _jsonBody({}, 401));
       final client = ApiClient(dio);
 
       final result = await client.get<Map>(
@@ -81,7 +103,7 @@ void main() {
       );
 
       expect(result.isErr, isTrue);
-      expect((result as Err<Failure, Map>).failure, isA<UnauthorizedFailure>());
+      expect((result as Err<Failure, Map>).failure.message, 'Session expired');
     });
 
     test(
