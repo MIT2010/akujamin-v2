@@ -20,8 +20,11 @@ class ChatPage extends StatelessWidget {
     final psychologist =
         GoRouterState.of(context).uri.queryParameters['psychologist'] ?? '';
 
-    return BlocProvider(
-      create: (_) => getIt<ChatCubit>()..getMessages(code),
+    return MultiBlocProvider(
+      providers: [
+        BlocProvider(create: (_) => getIt<ChatCubit>()..getMessages(code)),
+        BlocProvider.value(value: getIt<AuthCubit>()),
+      ],
       child: ChatView(psychologist: psychologist),
     );
   }
@@ -131,21 +134,25 @@ class _MessageInput extends StatelessWidget {
             Expanded(
               child: AppTextField(label: 'Tulis pesan', controller: controller),
             ),
-            IconButton(
-              icon: const Icon(Icons.send_rounded),
-              onPressed: () {
-                final text = controller.text;
-                if (text.trim().isEmpty) return;
-                final userId = switch (context.read<AuthCubit>().state) {
-                  AuthAuthenticated(:final user) => user.id,
-                  _ => null,
-                };
-                if (userId == null) return;
-                context.read<ChatCubit>().sendMessage(
-                  message: text,
-                  senderId: userId,
+            Builder(
+              builder: (context) {
+                return IconButton(
+                  icon: const Icon(Icons.send_rounded),
+                  onPressed: () {
+                    final text = controller.text;
+                    if (text.trim().isEmpty) return;
+                    final userId = switch (context.read<AuthCubit>().state) {
+                      AuthAuthenticated(:final user) => user.id,
+                      _ => null,
+                    };
+                    if (userId == null) return;
+                    context.read<ChatCubit>().sendMessage(
+                      message: text,
+                      senderId: userId,
+                    );
+                    controller.clear();
+                  },
                 );
-                controller.clear();
               },
             ),
           ],

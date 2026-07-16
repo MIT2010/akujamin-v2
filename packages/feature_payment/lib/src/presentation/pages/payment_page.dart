@@ -19,14 +19,19 @@ class PaymentPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final userId = switch (context.read<AuthCubit>().state) {
-      AuthAuthenticated(:final user) => user.id,
-      _ => null,
-    };
+    return BlocBuilder<AuthCubit, AuthState>(
+      bloc: getIt<AuthCubit>(),
+      builder: (context, state) {
+        final userId = switch (state) {
+          AuthAuthenticated(:final user) => user.id,
+          _ => null,
+        };
 
-    return BlocProvider(
-      create: (_) => getIt<PaymentCubit>()..initialize(userId ?? ''),
-      child: const PaymentView(),
+        return BlocProvider(
+          create: (_) => getIt<PaymentCubit>()..initialize(userId ?? ''),
+          child: const PaymentView(),
+        );
+      },
     );
   }
 }
