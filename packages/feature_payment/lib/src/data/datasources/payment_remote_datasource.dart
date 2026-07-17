@@ -85,7 +85,7 @@ class PaymentRemoteDataSource {
 
   Future<Result<Failure, Map<String, dynamic>>> checkPayment() {
     return _client.get<Map<String, dynamic>>(
-      '/tes/cek-pembayaran',
+      '/payment/cek-pembayaran',
       parser: (json) => json as Map<String, dynamic>,
     );
   }

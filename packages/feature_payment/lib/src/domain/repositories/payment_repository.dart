@@ -3,7 +3,7 @@ import 'package:core/core.dart';
 import '../entities/payment_account_detail.dart';
 import '../entities/registration_status.dart';
 
-/// Result of `GET /tes/cek-pembayaran` — deliberately not folded into
+/// Result of `GET /payment/cek-pembayaran` — deliberately not folded into
 /// [RegistrationStatus] since it's a distinct call the user can trigger
 /// manually (the review step's "Cek Status Pembayaran" button), not a
 /// re-fetch of the same resource.
