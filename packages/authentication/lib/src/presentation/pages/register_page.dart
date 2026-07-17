@@ -1,5 +1,3 @@
-import 'dart:io';
-
 import 'package:camera/camera.dart';
 import 'package:design_system/design_system.dart';
 import 'package:flutter/material.dart';
@@ -176,9 +174,8 @@ class _CameraOrPreview extends StatelessWidget {
             registerState.selfiePath != null) {
           return ClipRRect(
             borderRadius: BorderRadius.circular(16),
-            child: Image.file(
-              File(registerState.selfiePath!),
-              fit: BoxFit.cover,
+            child: LocalImagePreview(
+              path: registerState.selfiePath!,
               width: double.infinity,
             ),
           );

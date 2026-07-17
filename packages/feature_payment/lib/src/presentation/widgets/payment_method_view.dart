@@ -1,5 +1,3 @@
-import 'dart:io';
-
 import 'package:design_system/design_system.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -184,7 +182,10 @@ class _ProofOfPaymentPicker extends StatelessWidget {
                     alignment: Alignment.center,
                     children: [
                       localPath != null
-                          ? Image.file(File(localPath), fit: BoxFit.contain)
+                          ? LocalImagePreview(
+                              path: localPath,
+                              fit: BoxFit.contain,
+                            )
                           : Image.network(existingUrl!, fit: BoxFit.contain),
                       if (localPath != null)
                         Align(
