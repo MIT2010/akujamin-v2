@@ -904,6 +904,41 @@ exercised by `flutter test`; two new tests cover the native branch
 named explicitly in both the widget's doc comment and the test file
 rather than faked. Full workspace baseline stayed green.
 
+**20. ✅ Resolved 2026-07-17, found from a live web registration submit
+— `dart:io`'s `File` was still being read/deleted directly at four call
+sites, throwing `"Unsupported operation: _Namespace"` the instant any of
+them actually ran on Flutter Web.** Finding #19 fixed the `Image.file`
+*build-time* crash (an assertion hit while widgets render); this is the
+same root defect's *runtime* half — `dart:io`'s filesystem classes are
+stub implementations on web that throw the moment any real method is
+invoked, and `path` is a `blob:` URL there to begin with (the `camera`/
+`image_picker` packages' own web implementations), never a real
+filesystem path. Grepping the same pattern class after the reported
+crash found it in four places, not one: `authentication`'s
+`resize_image.dart` (`resizeImageBytes`, called from KTP-scan
+preprocessing) and `register_cubit.dart`'s `submit()` both read the
+selfie via `File(path).readAsBytes()`; `register_cubit.dart`'s
+`_deleteFileQuietly` and `feature_payment`'s `payment_cubit.dart`'s
+`_cleanupProofImage` both called `File(path).exists()`/`.delete()` for
+best-effort local cleanup; `feature_payment`'s
+`payment_remote_datasource.dart` uploaded the proof-of-payment image via
+`MultipartFile.fromFile(imagePath)`, which reads through `dart:io`
+internally the same way. **Fix**: the two read call sites now use
+`XFile(path).readAsBytes()` (`package:cross_file`, re-exported by
+`image_picker`) — `dart:io`'s `File` under the hood on native, a
+`blob:`-URL fetch on web — and the upload call site now reads bytes the
+same way and sends them via `MultipartFile.fromBytes` instead of
+`.fromFile`. The two best-effort cleanup call sites are now `kIsWeb`-
+guarded no-ops on web: there is no local file to delete there at all
+(the browser garbage-collects the blob on its own once nothing
+references it), so the correct fix is to skip the attempt entirely, not
+to catch the exception it would throw. Two new test files
+(`resize_image_test.dart`, `payment_remote_datasource_test.dart`) prove
+the `XFile`/`fromBytes` behavior against real temp files; all existing
+tests exercising these call sites on the native/VM test environment
+(where `XFile` delegates straight to `dart:io.File`) continued passing
+unchanged. Full workspace baseline stayed green.
+
 ---
 
 ## ✓ Resolved — `payment` status codes (was: open item above)
