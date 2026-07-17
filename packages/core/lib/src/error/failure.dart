@@ -23,6 +23,22 @@ final class ValidationFailure extends Failure {
   const ValidationFailure(super.message);
 }
 
+/// A response came back with no `DioException` (2xx, or an already-caught
+/// error status) but its body didn't match what the caller's `parser`
+/// expected — a genuine shape mismatch (missing/renamed field, wrong
+/// type, unexpected null), not a network or server-status problem. Real
+/// gap, found 2026-07-16 while auditing `ApiClient` after MIGRATION_LOG.md
+/// finding #10: that finding's actual crash (`GET /auth/me`'s real
+/// envelope not matching `UserProfileModel.fromJson`'s assumption, a
+/// `TypeError` thrown from generated cast code) was fixed by correcting
+/// that one model, but `ApiClient` itself still only caught
+/// `DioException` in every method — any *other* endpoint not yet
+/// exercised against a real backend would crash the exact same
+/// uncaught way. This class is that general fix's typed result.
+final class ParsingFailure extends Failure {
+  const ParsingFailure([super.message = 'Format respons tidak sesuai.']);
+}
+
 final class UnauthorizedFailure extends Failure {
   /// Defaults to a generic message for the case a 401's body carries none
   /// (e.g. a genuinely expired session on a protected endpoint) -- real

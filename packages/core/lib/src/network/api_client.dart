@@ -7,6 +7,16 @@ import '../result/result.dart';
 /// One Dio instance app-wide (§10). Every method converts a thrown
 /// [DioException] into a typed [Failure] so nothing above the data layer
 /// ever needs a try/catch (§7, §8).
+///
+/// Every method also catches non-`DioException` failures from [parser]
+/// itself (a `TypeError`/`FormatException`/etc. from a response shape
+/// the caller's model didn't expect) into [ParsingFailure] — real gap,
+/// found 2026-07-16 auditing `ApiClient` after MIGRATION_LOG.md finding
+/// #10: that finding's crash (`GET /auth/me`'s real envelope not
+/// matching `UserProfileModel.fromJson`'s assumption) was fixed in the
+/// one model, but this class itself had no general catch for it, so any
+/// *other* endpoint not yet exercised against a real backend would
+/// crash the exact same uncaught way the first one did.
 @lazySingleton
 class ApiClient {
   final Dio _dio;
@@ -23,6 +33,8 @@ class ApiClient {
       return Ok(parser(response.data));
     } on DioException catch (e) {
       return Err(_mapDioError(e));
+    } catch (e) {
+      return Err(ParsingFailure(_parsingMessage(e)));
     }
   }
 
@@ -41,6 +53,8 @@ class ApiClient {
       return Ok(parser(response.data));
     } on DioException catch (e) {
       return Err(_mapDioError(e));
+    } catch (e) {
+      return Err(ParsingFailure(_parsingMessage(e)));
     }
   }
 
@@ -55,6 +69,8 @@ class ApiClient {
       return Ok(parser(response.data));
     } on DioException catch (e) {
       return Err(_mapDioError(e));
+    } catch (e) {
+      return Err(ParsingFailure(_parsingMessage(e)));
     }
   }
 
@@ -73,6 +89,8 @@ class ApiClient {
       return Ok(parser(response.data));
     } on DioException catch (e) {
       return Err(_mapDioError(e));
+    } catch (e) {
+      return Err(ParsingFailure(_parsingMessage(e)));
     }
   }
 
@@ -91,8 +109,18 @@ class ApiClient {
       return Ok(parser(response.data));
     } on DioException catch (e) {
       return Err(_mapDioError(e));
+    } catch (e) {
+      return Err(ParsingFailure(_parsingMessage(e)));
     }
   }
+
+  /// Keeps the exception's own description (e.g. "type 'Null' is not a
+  /// subtype of type 'String' in type cast") in the `Failure.message`
+  /// rather than a purely generic string — useful in logs/error reports
+  /// without leaking anything server-side (unlike finding #11's raw SQL
+  /// disclosure, this text originates entirely from *this app's own*
+  /// Dart type-cast machinery, never from the response body itself).
+  String _parsingMessage(Object e) => 'Format respons tidak sesuai: $e';
 
   Failure _mapDioError(DioException e) {
     // Interceptors (e.g. ConnectivityInterceptor) may already attach a
