@@ -1020,6 +1020,58 @@ adapter) extended to assert the same emission sequence through the
 genuine `RefreshTokenInterceptor` → `AuthCubit` wiring, not just a
 mocked unit. Full workspace baseline stayed green.
 
+**23. ✅ Resolved 2026-07-17, found from live testing — every
+`flavors/*.json` already carries an `APP_NAME` (e.g. "AKUJAMIN Dev" /
+"AKUJAMIN Staging" / "AKUJAMIN"), but nothing ever read it: not
+`Env`, not `MaterialApp.title` (hardcoded to the starter kit's own
+generic title), and not Android's home-screen label
+(`app/build.gradle.kts`'s `productFlavors`, which had its own
+hardcoded "Starter Kit (Dev)"-style `resValue` strings, completely
+disconnected from the JSON config despite the per-flavor
+infrastructure already being there).** **Fix**: `Env.appName`
+(`--dart-define`, same pattern as every other `Env` field) now feeds
+`MaterialApp.title` in both branches of `apps/mobile/lib/src/app.dart`
+(the cold-boot/refresh splash and the real router). Android's
+`build.gradle.kts` gained an `appNameFrom(fileName, fallback)` helper
+that reads the *same* `flavors/*.json` file `--dart-define-from-file`
+already uses per flavor (`groovy.json.JsonSlurper`, available on
+Gradle's own classpath without a new dependency), falling back to the
+previous hardcoded label whenever the file doesn't exist yet (it's
+gitignored real config, same "never assume it exists" caution
+`--dart-define-from-file` itself already requires).
+
+Verifying this with a real `flutter build apk --flavor dev` (not run
+once, anywhere, in this whole migration until now — every prior
+verification used Chrome web) surfaced two further, entirely
+pre-existing bugs, both real and unrelated to `APP_NAME` itself:
+
+- AGP 9.0.1 (pinned in `settings.gradle.kts`) defaults `resValues` to
+  `false`, so *every* `resValue(...)` call in `productFlavors` —
+  present since this flavor setup was first written — failed the
+  build outright with `"Product Flavor ... contains custom resource
+  values, but the feature is disabled"` the moment it was actually
+  evaluated. **Fixed** alongside `APP_NAME`: `buildFeatures { resValues
+  = true }` added to the `android {}` block.
+- With that fixed, the build hit a second, unrelated failure evaluating
+  `no_screenshot` (a `feature_test` dependency)'s own bundled
+  `android/build.gradle`: `"Could not find method kotlin() for
+  arguments ... on project ':no_screenshot'"` — a Gradle/Kotlin DSL
+  incompatibility between that plugin's build script and this
+  project's pinned AGP/Kotlin versions. **Not fixed here** — genuinely
+  unrelated to `APP_NAME`, blocks *every* Android build right now
+  regardless of flavor or this fix, and picking a remediation (plugin
+  version bump, local patch, or AGP/Kotlin downgrade) needs its own
+  investigation. Left for a dedicated follow-up rather than folded into
+  this change.
+
+Dart-level baseline (`Env.appName`, `MaterialApp.title`) is fully
+covered by `melos run gen`/`analyze`/`test`, which stayed green; the
+Android Gradle half was verified as far as this session's tooling
+allows — Gradle successfully evaluated `:app`'s own configuration
+(including `appNameFrom` and `buildFeatures`) with no error on either
+attempt, only the unrelated `:no_screenshot` subproject ultimately
+blocked a full APK build.
+
 ---
 
 ## ✓ Resolved — `payment` status codes (was: open item above)

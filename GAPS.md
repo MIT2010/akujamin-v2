@@ -113,6 +113,21 @@ replace it exists prior to this audit:
   `wave_glow_loader.dart` — a ripple/glow loading animation on the payment
   confirmation step; migrated pages use a plain loading indicator instead.
 
+**iOS's `CFBundleDisplayName` still reads the starter kit's own template
+default ("Mobile"), not `flavors/*.json`'s `APP_NAME`.** Found alongside
+the `APP_NAME` fix (2026-07-17, MIGRATION_LOG.md's later findings) —
+Android's `productFlavors` already had per-flavor
+`resValue("app_name", ...)` infrastructure (just wired to hardcoded
+labels instead of the real JSON config, now fixed), so extending it to
+read `flavors/*.json` was a same-shape change. iOS has per-flavor Xcode
+schemes (`dev`/`staging`/`prod`) but no equivalent
+`Info.plist`-per-scheme variable injection was ever set up — building
+that (an `.xcconfig` per scheme, `$(APP_DISPLAY_NAME)` substitution in
+`Info.plist`) is new infrastructure, not a one-line fix like Android's,
+and this migration has never once exercised an iOS build (every session
+of live verification used Chrome web or, for this specific fix, a real
+Android debug APK). Deferred rather than guessed at.
+
 ---
 
 ## (b) Not tested against a real external system
