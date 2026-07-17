@@ -42,7 +42,21 @@ class App extends StatelessWidget {
       child: BlocBuilder<AuthCubit, AuthState>(
         bloc: getIt<AuthCubit>(),
         builder: (context, state) {
-          if (state is AuthInitial) {
+          // `AuthRefreshing` gets the exact same splash gate as
+          // `AuthInitial` (cold-boot session restore) -- real bug, found
+          // 2026-07-17 from live testing: a reactive token refresh
+          // (`RefreshTokenInterceptor`) used to leave the app showing
+          // whatever the current screen's own paused-request state
+          // happened to render, with nothing telling the user a refresh
+          // was in progress, and no protection against `AppRouter`
+          // redirecting to `/login` mid-refresh (see
+          // `AuthSessionAdapter._toStatus`, which reports `refreshing` as
+          // authenticated for exactly that reason). `AppRouter.router` is
+          // a `late final` on the `getIt<AppRouter>()` singleton, so the
+          // underlying `GoRouter`/`Navigator` state this gate briefly
+          // hides is preserved, not reset, once the state flips back to
+          // `authenticated` on a successful refresh.
+          if (state is AuthInitial || state is AuthRefreshing) {
             return MaterialApp(
               theme: AppTheme.light(),
               darkTheme: AppTheme.dark(),

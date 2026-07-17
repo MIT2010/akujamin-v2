@@ -76,7 +76,9 @@ void main() {
   });
 
   group('AuthCubit as TokenRefresher (§9/§10, RefreshTokenInterceptor)', () {
-    test('refresh() delegates straight to the repository', () async {
+    test('refresh() delegates straight to the repository when there is no '
+        'authenticated session to preserve (e.g. still restoring, or '
+        'already logged out)', () async {
       when(() => repository.getCachedUser()).thenAnswer((_) async => null);
       when(() => repository.refreshToken()).thenAnswer((_) async => true);
       final cubit = AuthCubit(repository, notificationGateway);
@@ -86,6 +88,60 @@ void main() {
 
       expect(refreshed, isTrue);
       verify(() => repository.refreshToken()).called(1);
+    });
+
+    test('refresh() emits refreshing(user) while the call is in flight, then '
+        'restores authenticated(user) on success -- real bug, found '
+        '2026-07-17 from live testing: this used to leave state untouched '
+        'during the call, so there was nothing distinguishing "a refresh is '
+        'in progress" from any other silent background request, and nothing '
+        'shown while waiting. A successful refresh must land back on the '
+        'exact same session, not force a fresh login.', () async {
+      when(() => repository.getCachedUser()).thenAnswer((_) async => user);
+      when(
+        () => repository.getCachedSessionProfile(),
+      ).thenAnswer((_) async => null);
+      when(() => repository.refreshToken()).thenAnswer((_) async => true);
+      final cubit = AuthCubit(repository, notificationGateway);
+      await pumpEventQueue();
+      expect(cubit.state, AuthState.authenticated(user));
+
+      final states = <AuthState>[];
+      final sub = cubit.stream.listen(states.add);
+
+      final refreshed = await cubit.refresh();
+      // Stream delivery to `.listen()` is microtask-scheduled, at least
+      // one tick behind `emit()` itself -- draining the queue here
+      // (rather than asserting immediately after `await cubit.refresh()`
+      // returns) avoids a race against the cubit's own second emission
+      // still being in flight.
+      await pumpEventQueue();
+      await sub.cancel();
+
+      expect(refreshed, isTrue);
+      expect(states, [
+        AuthState.refreshing(user),
+        AuthState.authenticated(user),
+      ]);
+      expect(cubit.state, AuthState.authenticated(user));
+    });
+
+    test('refresh() leaves the cubit on refreshing(user) when the call fails '
+        '-- RefreshTokenInterceptor.onRefreshFailed (wired to forceLogout) '
+        'is what moves it on to unauthenticated, not refresh() itself, so a '
+        'failed refresh never gets stuck showing the splash forever', () async {
+      when(() => repository.getCachedUser()).thenAnswer((_) async => user);
+      when(
+        () => repository.getCachedSessionProfile(),
+      ).thenAnswer((_) async => null);
+      when(() => repository.refreshToken()).thenAnswer((_) async => false);
+      final cubit = AuthCubit(repository, notificationGateway);
+      await pumpEventQueue();
+
+      final refreshed = await cubit.refresh();
+
+      expect(refreshed, isFalse);
+      expect(cubit.state, AuthState.refreshing(user));
     });
 
     test('forceLogout() has the exact same side effects as logout() — a '

@@ -26,11 +26,14 @@ class AuthSessionAdapter implements AuthSession {
   Stream<AuthSessionStatus> get statusStream =>
       _authCubit.stream.map(_toStatus);
 
+  // `refreshing` reports the same `isAuthenticated: true` an `authenticated`
+  // session does -- real bug, found 2026-07-17 from live testing: `AppRouter`
+  // must never redirect away from the current screen just because a
+  // reactive token refresh is in flight, only once it genuinely fails
+  // (`AuthCubit.forceLogout()`, which emits `unauthenticated` separately).
   AuthSessionStatus _toStatus(AuthState state) => switch (state) {
-    AuthAuthenticated(:final user) => AuthSessionStatus(
-      isAuthenticated: true,
-      roles: [user.role],
-    ),
+    AuthAuthenticated(:final user) || AuthRefreshing(:final user) =>
+      AuthSessionStatus(isAuthenticated: true, roles: [user.role]),
     AuthInitial() || AuthUnauthenticated() => AuthSessionStatus.unauthenticated,
   };
 }

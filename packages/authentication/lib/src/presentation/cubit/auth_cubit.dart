@@ -64,8 +64,38 @@ class AuthCubit extends Cubit<AuthState> implements TokenRefresher {
     emit(const AuthState.unauthenticated());
   }
 
+  /// Shows a splash while the refresh call is in flight, not `/login` --
+  /// real bug, found 2026-07-17 from live testing: this used to leave
+  /// `state` untouched during the call, so a *successful* refresh had
+  /// nothing distinguishing it from any other silent background request,
+  /// but there was also nothing shown *while waiting* on the current
+  /// screen either. Only [forceLogout] (via `RefreshTokenInterceptor`'s
+  /// `onRefreshFailed`, already wired below) moves to `unauthenticated` --
+  /// a *failed* refresh is the only thing that should ever reach
+  /// `/login`; a successful one restores exactly the session that was
+  /// there before, on whatever screen the user was already on.
   @override
-  Future<bool> refresh() => _repository.refreshToken();
+  Future<bool> refresh() async {
+    final current = state;
+    if (current is! AuthAuthenticated) return _repository.refreshToken();
+
+    emit(
+      AuthState.refreshing(
+        current.user,
+        sessionProfile: current.sessionProfile,
+      ),
+    );
+    final refreshed = await _repository.refreshToken();
+    if (refreshed) {
+      emit(
+        AuthState.authenticated(
+          current.user,
+          sessionProfile: current.sessionProfile,
+        ),
+      );
+    }
+    return refreshed;
+  }
 
   @override
   Future<void> forceLogout() => logout();

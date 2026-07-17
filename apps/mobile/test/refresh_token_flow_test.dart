@@ -114,15 +114,36 @@ void main() {
     });
 
     await configureDependencies(env: Env.current);
+    // AuthCubit is a lazy singleton -- getIt<AuthCubit>() here forces
+    // construction (kicking off its constructor's un-awaited
+    // _restoreCachedSession()) up front, so the pumpEventQueue() below has
+    // an actual instance to settle. Without this, the listener attached
+    // further down would be the thing that first constructs the cubit,
+    // making the boot-time restore's own authenticated() emission race
+    // ahead of it instead.
+    final authCubit = getIt<AuthCubit>();
+    await pumpEventQueue();
 
     final dio = getIt<Dio>();
     final adapter = _RecordingRefreshAdapter();
     dio.httpClientAdapter = adapter;
 
+    // Real bug, found 2026-07-17 from live testing: AuthCubit.refresh()
+    // used to leave `state` untouched during the call, so there was
+    // nothing distinguishing "a refresh is in progress" from any other
+    // silent background request -- and nothing shown while waiting.
+    // Captured here through the *real*, DI-wired AuthCubit (not a mock),
+    // proving the full chain -- RefreshTokenInterceptor calling into
+    // AuthCubit.refresh(), which emits refreshing() then authenticated()
+    // -- actually fires end to end, not just each piece in isolation.
+    final authStates = <AuthState>[];
+    final authSub = authCubit.stream.listen(authStates.add);
+
     final result = await getIt<ApiClient>().get<Map<String, dynamic>>(
       '/protected/ping',
       parser: (json) => json as Map<String, dynamic>,
     );
+    await authSub.cancel();
 
     expect(result.isOk, isTrue);
     expect((result as Ok<Failure, Map<String, dynamic>>).value['ok'], true);
@@ -150,7 +171,12 @@ void main() {
     );
 
     // A successful refresh must never force a logout.
-    final authCubit = getIt<AuthCubit>();
     expect(authCubit.state, isA<AuthAuthenticated>());
+
+    // ...and must show a splash while waiting, not jump straight to
+    // /login and never come back -- see apps/mobile/lib/src/app.dart's
+    // top-level BlocBuilder, which gates on AuthRefreshing the same way
+    // it already did on AuthInitial.
+    expect(authStates, [isA<AuthRefreshing>(), isA<AuthAuthenticated>()]);
   });
 }
