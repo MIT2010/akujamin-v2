@@ -983,6 +983,43 @@ silently sending the user into a form that will just fail the same way
 on submit; a new test locks in that narrower boundary too. Full
 workspace baseline stayed green.
 
+**22. ✅ Resolved 2026-07-17, found from live testing — a reactive token
+refresh (`RefreshTokenInterceptor`) had nothing to show the user while
+it was in flight, and no protection stopping `AppRouter` from
+redirecting to `/login` mid-refresh.** `AuthCubit.refresh()` — the
+`TokenRefresher` callback `RefreshTokenInterceptor.onRefreshToken`
+calls on a real 401 (see finding under the `auth` row for the original
+wiring) — used to leave `AuthState` completely untouched for the
+duration of the call: only a *failed* refresh ever emitted anything
+(`forceLogout()` → `unauthenticated`, correctly routing to `/login`),
+but a *successful* one was indistinguishable from any other silent
+background request — nothing told the user a refresh was happening,
+and nothing stopped whatever screen they were on from rendering its
+own now-stale, paused-request state in the meantime. **Fix**: a new
+`AuthState.refreshing(User, {SessionProfile?})` variant, carrying the
+exact session that was live right before the refresh started (not
+discarded). `AuthCubit.refresh()` now emits it immediately, then
+restores `authenticated(user, sessionProfile)` on success — a genuine
+failure still only ever reaches `unauthenticated` through the existing
+`forceLogout()` path, untouched by this fix.
+`AuthSessionAdapter._toStatus` maps `refreshing` to `isAuthenticated:
+true` (same as `authenticated`), so `AppRouter` never redirects away
+from the current screen just because a refresh is in flight — only a
+genuine failure's later `unauthenticated` emission does that.
+`apps/mobile/lib/src/app.dart`'s top-level `BlocBuilder` gates on
+`AuthRefreshing` the same way it already did on `AuthInitial` (the
+existing cold-boot splash), showing that same loading screen while
+waiting instead of whatever the current route's own paused state
+looked like. Proven at three levels: a cubit-level test observing the
+exact emission order (`refreshing` → `authenticated`) relative to the
+mocked `refreshToken()` call; an `AuthSessionAdapter` test confirming
+`isAuthenticated` never dips to `false` mid-refresh; and a full-DI
+integration test (`apps/mobile/test/refresh_token_flow_test.dart`,
+already exercising the real interceptor chain against a fake HTTP
+adapter) extended to assert the same emission sequence through the
+genuine `RefreshTokenInterceptor` → `AuthCubit` wiring, not just a
+mocked unit. Full workspace baseline stayed green.
+
 ---
 
 ## ✓ Resolved — `payment` status codes (was: open item above)
