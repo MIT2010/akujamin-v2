@@ -176,140 +176,131 @@ void main() {
     });
   });
 
-  group(
-    'ApiClient parser-exception safety -- real gap, found 2026-07-16 '
-    'auditing ApiClient after MIGRATION_LOG.md finding #10: that finding\'s '
-    'crash (a TypeError from a response shape UserProfileModel.fromJson '
-    'didn\'t expect) propagated straight past ApiClient uncaught, since '
-    'only DioException was ever caught -- fixed for that one model, but '
-    'every method here needed the same general safety net so any *other* '
-    'endpoint not yet exercised against a real backend fails the same '
-    'handleable way instead of crashing',
-    () {
-      test(
-        'get() converts a parser TypeError into Result.Err(ParsingFailure) '
-        'instead of letting it propagate uncaught',
-        () async {
-          final dio = _buildDio((options) async => _jsonBody({}, 200));
-          final client = ApiClient(dio);
+  group('ApiClient parser-exception safety -- real gap, found 2026-07-16 '
+      'auditing ApiClient after MIGRATION_LOG.md finding #10: that finding\'s '
+      'crash (a TypeError from a response shape UserProfileModel.fromJson '
+      'didn\'t expect) propagated straight past ApiClient uncaught, since '
+      'only DioException was ever caught -- fixed for that one model, but '
+      'every method here needed the same general safety net so any *other* '
+      'endpoint not yet exercised against a real backend fails the same '
+      'handleable way instead of crashing', () {
+    test('get() converts a parser TypeError into Result.Err(ParsingFailure) '
+        'instead of letting it propagate uncaught', () async {
+      final dio = _buildDio((options) async => _jsonBody({}, 200));
+      final client = ApiClient(dio);
 
-          final result = await client.get<String>(
-            '/thing',
-            // Same shape of failure as finding #10: a required field is
-            // absent, and the generated cast throws a real TypeError.
-            parser: (json) => (json as Map)['missing'] as String,
-          );
-
-          expect(result.isErr, isTrue);
-          expect((result as Err<Failure, String>).failure, isA<ParsingFailure>());
-        },
+      final result = await client.get<String>(
+        '/thing',
+        // Same shape of failure as finding #10: a required field is
+        // absent, and the generated cast throws a real TypeError.
+        parser: (json) => (json as Map)['missing'] as String,
       );
 
-      test(
-        'post() converts a parser TypeError into Result.Err(ParsingFailure)',
-        () async {
-          final dio = _buildDio((options) async => _jsonBody({}, 201));
-          final client = ApiClient(dio);
+      expect(result.isErr, isTrue);
+      expect((result as Err<Failure, String>).failure, isA<ParsingFailure>());
+    });
 
-          final result = await client.post<String>(
-            '/thing',
-            data: {'name': 'x'},
-            parser: (json) => (json as Map)['missing'] as String,
-          );
+    test(
+      'post() converts a parser TypeError into Result.Err(ParsingFailure)',
+      () async {
+        final dio = _buildDio((options) async => _jsonBody({}, 201));
+        final client = ApiClient(dio);
 
-          expect(result.isErr, isTrue);
-          expect((result as Err<Failure, String>).failure, isA<ParsingFailure>());
-        },
+        final result = await client.post<String>(
+          '/thing',
+          data: {'name': 'x'},
+          parser: (json) => (json as Map)['missing'] as String,
+        );
+
+        expect(result.isErr, isTrue);
+        expect((result as Err<Failure, String>).failure, isA<ParsingFailure>());
+      },
+    );
+
+    test(
+      'put() converts a parser TypeError into Result.Err(ParsingFailure)',
+      () async {
+        final dio = _buildDio((options) async => _jsonBody({}, 200));
+        final client = ApiClient(dio);
+
+        final result = await client.put<String>(
+          '/thing',
+          data: {'name': 'x'},
+          parser: (json) => (json as Map)['missing'] as String,
+        );
+
+        expect(result.isErr, isTrue);
+        expect((result as Err<Failure, String>).failure, isA<ParsingFailure>());
+      },
+    );
+
+    test(
+      'delete() converts a parser TypeError into Result.Err(ParsingFailure)',
+      () async {
+        final dio = _buildDio((options) async => _jsonBody({}, 200));
+        final client = ApiClient(dio);
+
+        final result = await client.delete<String>(
+          '/thing',
+          parser: (json) => (json as Map)['missing'] as String,
+        );
+
+        expect(result.isErr, isTrue);
+        expect((result as Err<Failure, String>).failure, isA<ParsingFailure>());
+      },
+    );
+
+    test('multipart() converts a parser TypeError into '
+        'Result.Err(ParsingFailure)', () async {
+      final dio = _buildDio((options) async => _jsonBody({}, 200));
+      final client = ApiClient(dio);
+
+      final result = await client.multipart<String>(
+        '/thing',
+        data: FormData.fromMap({'field': 'value'}),
+        parser: (json) => (json as Map)['missing'] as String,
       );
 
-      test(
-        'put() converts a parser TypeError into Result.Err(ParsingFailure)',
-        () async {
-          final dio = _buildDio((options) async => _jsonBody({}, 200));
-          final client = ApiClient(dio);
+      expect(result.isErr, isTrue);
+      expect((result as Err<Failure, String>).failure, isA<ParsingFailure>());
+    });
 
-          final result = await client.put<String>(
-            '/thing',
-            data: {'name': 'x'},
-            parser: (json) => (json as Map)['missing'] as String,
-          );
+    test(
+      'also catches a FormatException from the parser, not just TypeError',
+      () async {
+        final dio = _buildDio(
+          (options) async => _jsonBody({'value': 'not-a-number'}, 200),
+        );
+        final client = ApiClient(dio);
 
-          expect(result.isErr, isTrue);
-          expect((result as Err<Failure, String>).failure, isA<ParsingFailure>());
-        },
-      );
+        final result = await client.get<int>(
+          '/thing',
+          parser: (json) => int.parse((json as Map)['value'] as String),
+        );
 
-      test(
-        'delete() converts a parser TypeError into Result.Err(ParsingFailure)',
-        () async {
-          final dio = _buildDio((options) async => _jsonBody({}, 200));
-          final client = ApiClient(dio);
+        expect(result.isErr, isTrue);
+        expect((result as Err<Failure, int>).failure, isA<ParsingFailure>());
+      },
+    );
 
-          final result = await client.delete<String>(
-            '/thing',
-            parser: (json) => (json as Map)['missing'] as String,
-          );
+    test(
+      'keeps the underlying exception description in the failure message '
+      '-- useful for logs/diagnostics, and safe to keep since it '
+      'originates from this app\'s own Dart type-cast code, never from '
+      'the response body (unlike finding #11\'s raw-SQL disclosure)',
+      () async {
+        final dio = _buildDio((options) async => _jsonBody({}, 200));
+        final client = ApiClient(dio);
 
-          expect(result.isErr, isTrue);
-          expect((result as Err<Failure, String>).failure, isA<ParsingFailure>());
-        },
-      );
+        final result = await client.get<String>(
+          '/thing',
+          parser: (json) => (json as Map)['missing'] as String,
+        );
 
-      test(
-        'multipart() converts a parser TypeError into '
-        'Result.Err(ParsingFailure)',
-        () async {
-          final dio = _buildDio((options) async => _jsonBody({}, 200));
-          final client = ApiClient(dio);
-
-          final result = await client.multipart<String>(
-            '/thing',
-            data: FormData.fromMap({'field': 'value'}),
-            parser: (json) => (json as Map)['missing'] as String,
-          );
-
-          expect(result.isErr, isTrue);
-          expect((result as Err<Failure, String>).failure, isA<ParsingFailure>());
-        },
-      );
-
-      test(
-        'also catches a FormatException from the parser, not just TypeError',
-        () async {
-          final dio = _buildDio(
-            (options) async => _jsonBody({'value': 'not-a-number'}, 200),
-          );
-          final client = ApiClient(dio);
-
-          final result = await client.get<int>(
-            '/thing',
-            parser: (json) => int.parse((json as Map)['value'] as String),
-          );
-
-          expect(result.isErr, isTrue);
-          expect((result as Err<Failure, int>).failure, isA<ParsingFailure>());
-        },
-      );
-
-      test(
-        'keeps the underlying exception description in the failure message '
-        '-- useful for logs/diagnostics, and safe to keep since it '
-        'originates from this app\'s own Dart type-cast code, never from '
-        'the response body (unlike finding #11\'s raw-SQL disclosure)',
-        () async {
-          final dio = _buildDio((options) async => _jsonBody({}, 200));
-          final client = ApiClient(dio);
-
-          final result = await client.get<String>(
-            '/thing',
-            parser: (json) => (json as Map)['missing'] as String,
-          );
-
-          final failure = (result as Err<Failure, String>).failure;
-          expect(failure.message, contains('Format respons tidak sesuai'));
-          expect(failure.message, contains('type'));
-        },
-      );
-    },
-  );
+        final failure = (result as Err<Failure, String>).failure;
+        expect(failure.message, contains('Format respons tidak sesuai'));
+        expect(failure.message, contains('type'));
+      },
+    );
+  });
 }

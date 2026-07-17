@@ -1,5 +1,6 @@
 import 'package:core/core.dart';
 import 'package:dio/dio.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:injectable/injectable.dart';
 
 /// Thin wrapper over the seven `/tes/*` write-path endpoints — deliberately
@@ -59,16 +60,25 @@ class PaymentRemoteDataSource {
   /// the server can move the voucher into review. `FormData.fromMap`
   /// (Dio) omits a `null` entry entirely, so passing `null` here sends
   /// the exact same empty-`bukti` request the old app does.
+  ///
+  /// Reads via `XFile.readAsBytes()` + `MultipartFile.fromBytes`, not
+  /// `MultipartFile.fromFile` -- real bug, found 2026-07-17: `fromFile`
+  /// reads through dart:io internally, which throws "Unsupported
+  /// operation: _Namespace" on Flutter Web the same way a direct
+  /// `File(path).readAsBytes()` call does (`imagePath` is a `blob:` URL
+  /// on web, not a real filesystem path).
   Future<Result<Failure, Map<String, dynamic>>> sendPayment(
     String? imagePath,
   ) async {
+    MultipartFile? bukti;
+    if (imagePath != null) {
+      final bytes = await XFile(imagePath).readAsBytes();
+      bukti = MultipartFile.fromBytes(bytes, filename: 'bukti.jpg');
+    }
+
     return _client.multipart<Map<String, dynamic>>(
       '/tes/kirim-pembayaran',
-      data: FormData.fromMap({
-        'bukti': imagePath == null
-            ? null
-            : await MultipartFile.fromFile(imagePath),
-      }),
+      data: FormData.fromMap({'bukti': bukti}),
       parser: (json) => json as Map<String, dynamic>,
     );
   }

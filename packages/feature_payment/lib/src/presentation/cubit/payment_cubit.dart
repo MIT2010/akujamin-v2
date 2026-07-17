@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:core/core.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:injectable/injectable.dart';
@@ -252,6 +253,12 @@ class PaymentCubit extends Cubit<PaymentState> {
   /// a cleanup failure must never block a payment that already succeeded
   /// server-side.
   Future<void> _cleanupProofImage(String path) async {
+    // No filesystem to clean up on web -- `path` is a `blob:` URL there,
+    // not a real file, and dart:io's `File` throws "Unsupported
+    // operation" the moment it's touched at all (real bug, found
+    // 2026-07-17). The browser garbage-collects the underlying blob
+    // itself once nothing references it anymore; nothing to do here.
+    if (kIsWeb) return;
     try {
       final file = File(path);
       if (await file.exists()) await file.delete();
