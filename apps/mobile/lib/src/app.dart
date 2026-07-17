@@ -1,4 +1,5 @@
 import 'package:authentication/authentication.dart';
+import 'package:core/core.dart';
 import 'package:design_system/design_system.dart';
 import 'package:feature_about/feature_about.dart';
 import 'package:feature_counseling/feature_counseling.dart';
@@ -58,6 +59,7 @@ class App extends StatelessWidget {
           // `authenticated` on a successful refresh.
           if (state is AuthInitial || state is AuthRefreshing) {
             return MaterialApp(
+              title: Env.current.appName,
               theme: AppTheme.light(),
               darkTheme: AppTheme.dark(),
               // Real bug, found 2026-07-16 during live web testing, and
@@ -98,7 +100,13 @@ class App extends StatelessWidget {
           // shell tab is visible — see DashboardNotificationListener's doc
           // comment for why that distinction matters.
           return MaterialApp.router(
-            title: 'Flutter Starter Kit',
+            // Real gap, found 2026-07-17 from live testing: every
+            // `flavors/*.json` already carries an `APP_NAME` (e.g.
+            // "AKUJAMIN Dev"), but this was hardcoded to the starter
+            // kit's own generic title instead of reading it -- see
+            // `Env.appName`'s doc comment for the other (Android
+            // home-screen label) half of this same gap.
+            title: Env.current.appName,
             routerConfig: appRouter.router,
             theme: AppTheme.light(),
             darkTheme: AppTheme.dark(),

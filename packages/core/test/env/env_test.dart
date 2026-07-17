@@ -22,6 +22,16 @@ void main() {
       expect(Env.current.isProd, isFalse);
       expect(Env.current.wsScheme, 'ws');
     });
+
+    test(
+      'appName defaults to the starter kit name when no --dart-define is '
+      'passed -- real gap, found 2026-07-17 from live testing: every '
+      'flavors/*.json already carries an APP_NAME (e.g. "AKUJAMIN Dev"), '
+      'but nothing ever read it into Env at all until this field existed',
+      () {
+        expect(Env.current.appName, 'Flutter Starter Kit');
+      },
+    );
   });
 
   group('joinApiUrl', () {

@@ -18,6 +18,7 @@ String joinApiUrl(String baseUrl, String apiVersion) =>
 
 class Env {
   final Flavor flavor;
+  final String appName;
   final String apiBaseUrl;
   final String apiVersion;
   final String wsHost;
@@ -26,6 +27,7 @@ class Env {
 
   const Env._({
     required this.flavor,
+    required this.appName,
     required this.apiBaseUrl,
     required this.apiVersion,
     required this.wsHost,
@@ -36,6 +38,18 @@ class Env {
   static const _flavorName = String.fromEnvironment(
     'FLAVOR',
     defaultValue: 'dev',
+  );
+  // Real gap, found 2026-07-17 from live testing: every `flavors/*.json`
+  // already carries an `APP_NAME` (e.g. "AKUJAMIN Dev"), but nothing ever
+  // read it -- neither this class nor Android's `build.gradle.kts`, which
+  // hardcoded its own generic "Starter Kit (Dev)"-style labels instead,
+  // completely disconnected from the JSON config. This field is the
+  // Dart-level half of the fix (see [MaterialApp.title]'s call site);
+  // `app/build.gradle.kts`'s `productFlavors` block is the other half,
+  // for the Android home-screen label `--dart-define` can't reach.
+  static const _appName = String.fromEnvironment(
+    'APP_NAME',
+    defaultValue: 'Flutter Starter Kit',
   );
   static const _apiBaseUrl = String.fromEnvironment(
     'API_BASE_URL',
@@ -60,6 +74,7 @@ class Env {
       (f) => f.name == _flavorName,
       orElse: () => Flavor.dev,
     ),
+    appName: _appName,
     apiBaseUrl: _apiBaseUrl,
     apiVersion: _apiVersion,
     wsHost: _wsHost,
