@@ -12,6 +12,26 @@ dev_dependencies:
   # imported by app code, so pinning it down a major is low-risk.
   melos: ^7.0.0
 
+# Real bug, found 2026-07-17 from a live device build failure: pub.dev's
+# no_screenshot 1.2.0 (a feature_test dependency, published days before
+# this was found) ships an android/build.gradle that assumes AGP 9's
+# built-in Kotlin support is active whenever the detected AGP major
+# version is >= 9 -- but Flutter's own tooling defaults
+# `android.builtInKotlin=false` (flutter/flutter#183910), so the
+# `kotlin {}` DSL block that assumption relies on was never actually
+# registered by anyone, and every real `flutter build apk` failed with
+# "Could not find method kotlin()". `third_party/no_screenshot` is a
+# vendored copy of 1.2.0 with only that one Gradle file patched back to
+# unconditionally applying `kotlin-android` (how every version before
+# 1.2.0 worked, and what's actually correct given this project keeps
+# `android.builtInKotlin` at the Flutter-recommended default) -- see
+# that file's own doc comment for the full explanation. Workspace-root
+# `dependency_overrides` (not per-package) since Dart pub workspaces
+# resolve overrides once, for every member package, from here.
+dependency_overrides:
+  no_screenshot:
+    path: third_party/no_screenshot
+
 workspace:
   - apps/mobile
   - packages/core

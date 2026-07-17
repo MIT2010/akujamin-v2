@@ -1,0 +1,70 @@
+group 'com.flutterplaza.no_screenshot'
+version '1.0-SNAPSHOT'
+
+buildscript {
+    ext.kotlin_version = '2.1.0'
+    repositories {
+        google()
+        mavenCentral()
+    }
+
+    dependencies {
+        classpath 'com.android.tools.build:gradle:8.6.0'
+        classpath "org.jetbrains.kotlin:kotlin-gradle-plugin:$kotlin_version"
+    }
+}
+
+allprojects {
+    repositories {
+        google()
+        mavenCentral()
+    }
+}
+
+apply plugin: 'com.android.library'
+
+// PATCHED locally 2026-07-17 (see MIGRATION_LOG.md finding on
+// `no_screenshot`'s Gradle build failure) -- the upstream 1.2.0
+// release's `agpMajor < 9` guard here assumes AGP 9's built-in Kotlin
+// support is active whenever the detected AGP major version is >= 9,
+// but Flutter's own tooling defaults `android.builtInKotlin=false`
+// (flutter/flutter#183910), so the `kotlin {}` extension this file
+// used to reference below was never actually registered by anyone --
+// neither KGP (skipped by this guard) nor AGP's built-in support
+// (disabled by Flutter's default) -- and every real build failed with
+// "Could not find method kotlin()". Reverted to unconditionally
+// applying `kotlin-android`, matching how every version of this
+// plugin before 1.2.0 worked, and matching this project's own
+// `android.builtInKotlin=false` (kept at the Flutter-recommended
+// default specifically so third-party plugins that haven't finished
+// their own AGP 9 migration -- this one included -- keep working).
+apply plugin: 'kotlin-android'
+
+android {
+    namespace "com.flutterplaza.no_screenshot"
+    compileSdk 36
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_1_8
+        targetCompatibility JavaVersion.VERSION_1_8
+    }
+
+    // NOTE: do not add src/main/kotlin to sourceSets here — the Kotlin
+    // toolchain (KGP, and AGP's built-in Kotlin on 9+) already compiles it,
+    // and registering it again compiles every declaration twice
+    // ("Conflicting declarations" on Flutter >= 3.44.4, see #114).
+
+    defaultConfig {
+        minSdkVersion 16
+    }
+}
+
+// The kotlin {} extension exists on both paths: registered by KGP on
+// AGP < 9 and by AGP's built-in Kotlin on 9+. The compilerOptions DSL
+// requires KGP >= 1.9; fine here since the plugin's minimum Flutter
+// (3.38) ships KGP 2.x.
+kotlin {
+    compilerOptions {
+        jvmTarget = org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_1_8
+    }
+}

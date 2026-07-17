@@ -38,6 +38,15 @@ android {
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
+        // Separate, pre-existing gap found while verifying the APP_NAME/
+        // no_screenshot fixes with a real `flutter build apk`, 2026-07-17:
+        // flutter_local_notifications (a `shared` dependency, wired for
+        // NotificationGateway) requires core library desugaring since its
+        // v10+ (backwards-compatible scheduled notifications), and nothing
+        // here ever enabled it -- again never caught before since no real
+        // Android build had run in this migration. Version per the
+        // plugin's own README ("Add desugaring dependency" section).
+        isCoreLibraryDesugaringEnabled = true
     }
 
     // Separate, pre-existing bug found while verifying the `APP_NAME` fix
@@ -113,6 +122,10 @@ kotlin {
     compilerOptions {
         jvmTarget = org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17
     }
+}
+
+dependencies {
+    coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.4")
 }
 
 flutter {

@@ -36,6 +36,13 @@ coverage/
 # generated .gitignore still gets its build output ignored.
 build/
 
+# Gradle's own local per-project cache/state directory -- appears in
+# apps/mobile/android/ on any real Android build, and (found 2026-07-17,
+# MIGRATION_LOG.md finding #24) in third_party/no_screenshot/android/ too
+# the moment Gradle evaluates that vendored subproject. Disposable,
+# regenerated on every build, never source.
+.gradle/
+
 # Per-package plugin-resolution cache, written by `pub get` for any
 # package that pulls in a plugin with platform implementations (e.g.
 # feature_onboarding's shared_preferences) -- machine/run-specific,
