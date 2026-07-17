@@ -939,6 +939,50 @@ tests exercising these call sites on the native/VM test environment
 (where `XFile` delegates straight to `dart:io.File`) continued passing
 unchanged. Full workspace baseline stayed green.
 
+**21. ✅ Resolved 2026-07-17, found from live testing — two separate bugs
+reported together: a successful registration submit didn't reach Home
+(landed back on the selfie step instead), and a 404 from `GET
+/tes/cek-voucher` left the payment page loading forever.**
+
+*Registration nav.* `RegisterCubit.submit()`'s success branch called
+`_refreshRegisteredFlag()` — which emits a new `AuthState` through
+`AuthCubit.setAuthenticated()` — *before* emitting `RegisterStatus.
+success`. `AppRouter`'s `refreshListenable`
+(`GoRouterRefreshStream.notifyListeners()`, called unconditionally on
+every stream event, no diffing) fires on that `AuthState` emission,
+triggering a `go_router` redirect re-evaluation while still on
+`/register` — before the page had a chance to pop. That rebuilt
+`RegisterPage` from scratch mid-flow, resetting straight back to its
+default state (the selfie step) instead of ever reaching
+`Navigator.pop(true)`. **Fix**: reordered — `success` is emitted first
+(popping the page essentially immediately, since `emit()`+stream
+delivery is microtask-speed with no real I/O), and the best-effort
+profile refresh runs after, unaffected by the reorder since it was
+already fire-and-forget by design. A new regression test observes the
+cubit's own emission order relative to the `refreshProfile()` call (not
+just the final state) — confirmed to fail against the pre-fix ordering
+before being locked in.
+
+*Payment 404.* `PaymentCubit._checkVoucher()`'s failure branch only set
+`isFailed`/`error`, never touching `step` — which defaults to, and on
+failure stayed at, `PaymentStep.checking` forever. `PaymentView`'s
+`BlocBuilder` only rebuilds `when p.step != c.step`, so the screen
+stayed on the loading spinner permanently; a `SnackBar` (driven by
+`isFailed`/`error`, which *did* change) flashed the error message once,
+easy to miss, with nothing else on screen ever changing. A 404
+specifically means "no voucher exists yet for this user" — mirrored
+from the old app's `PaymentStateCubit.initialize()`, which calls
+`_checkVoucher` with `showError: false` and then unconditionally falls
+through to `loadForms()` (→ `PaymentStatus.demography`) whenever the
+check didn't resolve to an existing voucher's status. **Fix**: a 404
+`ServerFailure` now moves `step` to `PaymentStep.demography` and loads
+the form schema, same as the existing `needsRegistrationData` path.
+Scoped to 404 specifically (not every failure, unlike the old app) — a
+genuine 500/network error still surfaces as `isFailed` instead of
+silently sending the user into a form that will just fail the same way
+on submit; a new test locks in that narrower boundary too. Full
+workspace baseline stayed green.
+
 ---
 
 ## ✓ Resolved — `payment` status codes (was: open item above)
