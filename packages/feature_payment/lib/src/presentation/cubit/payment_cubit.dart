@@ -51,6 +51,26 @@ class PaymentCubit extends Cubit<PaymentState> {
 
     await result.fold(
       (failure) async {
+        // Real bug, found 2026-07-17 from live testing: `step` stayed at
+        // its default `PaymentStep.checking` on any failure, and
+        // `PaymentView`'s BlocBuilder only rebuilds on `step` changes --
+        // so the screen was stuck on the loading spinner forever, even
+        // though a SnackBar (driven by `isFailed`/`error`, which *did*
+        // change) flashed the message once. A 404 here specifically
+        // means "no voucher exists yet for this user", mirrored from the
+        // old app's `PaymentStateCubit.initialize()`: it calls
+        // `_checkVoucher` with `showError: false` and then falls through
+        // to `loadForms()` (-> `PaymentStatus.demography`) unconditionally
+        // whenever the check didn't resolve to an existing voucher's
+        // step, `cek-voucher` failing included. Scoped to 404 specifically
+        // (not every failure) so a real 500/network error still surfaces
+        // as an error instead of silently sending the user into a form
+        // that will just fail the same way on submit.
+        if (failure is ServerFailure && failure.statusCode == 404) {
+          emit(state.copyWith(isLoading: false, step: PaymentStep.demography));
+          await _loadForms();
+          return;
+        }
         emit(state.copyWith(isLoading: false, isFailed: true, error: failure));
       },
       (regStatus) async {

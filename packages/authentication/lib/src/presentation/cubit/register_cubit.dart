@@ -201,8 +201,25 @@ class RegisterCubit extends Cubit<RegisterState> {
           // for KTP extraction *and* this final submit, so it can't be
           // cleaned up any earlier without breaking the flow.
           await _deleteFileQuietly(selfiePath);
-          await _refreshRegisteredFlag();
+
+          // `success` emitted *before* the profile refresh, not after --
+          // real bug, found 2026-07-17 from live testing: `AppRouter`'s
+          // `refreshListenable` (`GoRouterRefreshStream`) fires
+          // `notifyListeners()` unconditionally on every `AuthCubit`
+          // emission (see that class's doc comment), and
+          // `_refreshRegisteredFlag()` below emits one. With the refresh
+          // called first, that notification landed *while still on
+          // `/register`*, before this cubit's own `success` state (and
+          // the page's pop) had a chance to fire -- triggering a
+          // redirect re-evaluation that rebuilt `RegisterPage` from
+          // scratch mid-flow, resetting straight back to the selfie step
+          // instead of ever reaching `Navigator.pop(true)`. Emitting
+          // `success` first pops the page immediately; the profile
+          // refresh below is unaffected by the reorder -- it was always
+          // best-effort/fire-and-forget (see `_refreshRegisteredFlag`'s
+          // own doc comment).
           emit(state.copyWith(status: RegisterStatus.success));
+          await _refreshRegisteredFlag();
         },
       );
     } catch (e) {

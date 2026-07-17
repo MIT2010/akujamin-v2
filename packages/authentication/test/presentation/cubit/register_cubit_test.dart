@@ -205,6 +205,65 @@ void main() {
       },
     );
 
+    test('emits success before refreshing the isRegistered flag, not after -- '
+        "real bug, found 2026-07-17 from live testing: AppRouter's "
+        'refreshListenable (GoRouterRefreshStream) fires notifyListeners() '
+        'unconditionally on every AuthCubit emission, and refreshing the '
+        'profile *before* emitting success let that notification land while '
+        'still on /register, before the page had a chance to pop -- '
+        'rebuilding RegisterPage mid-flow and resetting it back to the '
+        'selfie step instead of ever reaching Home. Emitting success first '
+        'means the pop-triggering state change always happens before the '
+        'unrelated auth-state notification, proven here by observing the '
+        "cubit's own emission order relative to the refreshProfile call, not "
+        'just the final state.', () async {
+      final callOrder = <String>[];
+      final file = File(
+        '${Directory.systemTemp.path}/register_cubit_test_order_selfie.jpg',
+      )..writeAsBytesSync([1, 2, 3]);
+      addTearDown(() {
+        if (file.existsSync()) file.deleteSync();
+      });
+
+      when(
+        () => completeRegistrationUseCase(any()),
+      ).thenAnswer((_) async => const Ok(null));
+      when(() => authRepository.refreshProfile()).thenAnswer((_) async {
+        // A real network round-trip (unlike this mock's other
+        // zero-delay answers) never resolves within the same
+        // microtask it's called from -- awaiting a delay here matches
+        // that, so this test's timing reflects the real app instead of
+        // an artifact of a synchronous mock racing ahead of the
+        // cubit's own (also microtask-scheduled) stream delivery.
+        await Future.delayed(const Duration(milliseconds: 1));
+        callOrder.add('refreshProfile');
+        return const Ok((
+          User(
+            id: '1',
+            email: 'a@example.com',
+            role: 'admin',
+            isRegistered: true,
+          ),
+          SessionProfile(avatar: '', name: 'Ani', nik: '1234567890123456'),
+        ));
+      });
+
+      final cubit = build();
+      cubit.setSelfiePath(file.path);
+
+      final sub = cubit.stream.listen((state) {
+        if (state.status == RegisterStatus.success) {
+          callOrder.add('emit:success');
+        }
+      });
+
+      await cubit.submit();
+      await sub.cancel();
+      await cubit.close();
+
+      expect(callOrder, ['emit:success', 'refreshProfile']);
+    });
+
     blocTest<RegisterCubit, RegisterState>(
       'on failure: goes back to inputForm carrying the failure, and never '
       'touches the selfie file or AuthCubit',

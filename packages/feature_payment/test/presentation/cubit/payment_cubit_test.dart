@@ -147,6 +147,66 @@ void main() {
         expect(gateway.subscribedChannels, ['conf.27']);
       },
     );
+
+    blocTest<PaymentCubit, PaymentState>(
+      'a 404 (no voucher exists yet for this user) moves to the demography '
+      'step and loads the form schema, instead of leaving step stuck at '
+      'checking forever -- real bug, found 2026-07-17 from live testing: '
+      "step never left its default PaymentStep.checking on any checkVoucher "
+      "failure, and PaymentView's BlocBuilder only rebuilds when step "
+      'changes, so the screen stayed on the loading spinner permanently '
+      "even though a SnackBar (driven by isFailed/error) flashed once. "
+      "Mirrors the old app's PaymentStateCubit.initialize(), which falls "
+      'through to loadForms() whenever checkVoucher did not resolve to an '
+      'existing voucher status.',
+      setUp: () {
+        when(() => repository.checkVoucher()).thenAnswer(
+          (_) async => const Err(
+            ServerFailure('Voucher tidak ditemukan', statusCode: 404),
+          ),
+        );
+        when(() => formInputRepository.getForm('/tes/pertanyaan')).thenAnswer(
+          (_) async => const Ok([
+            FormInputField(
+              label: 'psikologi',
+              display: 'Psikolog',
+              type: 'select',
+              validate: true,
+              readOnly: false,
+            ),
+          ]),
+        );
+      },
+      build: build,
+      act: (cubit) => cubit.initialize('user-1'),
+      verify: (cubit) {
+        expect(cubit.state.step, PaymentStep.demography);
+        expect(cubit.state.isFailed, isFalse);
+        expect(cubit.state.forms, hasLength(1));
+      },
+    );
+
+    blocTest<PaymentCubit, PaymentState>(
+      'a non-404 failure (e.g. a real server/network error) still surfaces '
+      'as isFailed instead of silently proceeding to demography -- scoped '
+      'deliberately narrower than the old app (which treated *any* '
+      'checkVoucher failure as "no voucher yet"), so a genuine backend '
+      'outage does not send the user into a form that will just fail the '
+      'same way on submit',
+      setUp: () {
+        when(() => repository.checkVoucher()).thenAnswer(
+          (_) async =>
+              const Err(ServerFailure('Server error', statusCode: 500)),
+        );
+      },
+      build: build,
+      act: (cubit) => cubit.initialize('user-1'),
+      verify: (cubit) {
+        expect(cubit.state.step, PaymentStep.checking);
+        expect(cubit.state.isFailed, isTrue);
+        verifyNever(() => formInputRepository.getForm(any()));
+      },
+    );
   });
 
   group('PaymentCubit.setInput — clear-on-parent-change', () {
