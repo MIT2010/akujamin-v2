@@ -18,6 +18,60 @@ comes from.
 
 ---
 
+## 🚨 REQUIRES EXTERNAL ESCALATION — not an accepted migration gap
+
+**Everything below this file's intro is a gap *we* consciously accepted.
+This one is different: it is a live backend vulnerability, found by this
+app but not caused by it, and it cannot be closed by anything in this
+repo. It needs to be escalated to whoever owns the Development backend —
+recorded here so it does not quietly sit as "just another item" in a
+list of self-accepted tradeoffs.**
+
+**`POST /tes/create` (`createVoucher`) leaks a raw SQL error —
+including the internal DB host, port, database name, and connection-pool
+name — to the client, on every single call, for every account, because
+its own server-side `kode_voucher` generator is broken and deterministic
+(not random).** Full details, evidence, and the two-attempts-two-accounts
+reproduction are in **[MIGRATION_LOG.md finding #11](MIGRATION_LOG.md)**
+(search for `**11. 🔴 OPEN`) — not duplicated here beyond the summary
+below, so the two documents can't drift apart on the facts.
+
+**Why this belongs here and not in the sections below**: sections (a)-(c)
+are about *this app's* behavior deliberately falling short of the old
+app's. This is the opposite direction — the *backend* is exposing
+infrastructure internals it should never expose, and failing a core
+write path (starting a psychology test) for every user, regardless of
+which client calls it. Nothing in `akujamin-v2` (or the old app, for that
+matter) can fix either half of this from the client side.
+
+**Two distinct problems, confirmed 2026-07-15, both still open:**
+
+1. **Information disclosure** — the full SQL `INSERT` statement, bound
+   values, DB host/port/database name, and the named connection pool
+   (`db_partner`) come back verbatim in a client-facing error string.
+   This is infrastructure detail that must never reach a client,
+   security posture aside — confirmed to originate backend-side
+   (Laravel/FrankenPHP), not something any request shape or client-side
+   handling can suppress.
+2. **A broken, deterministic voucher-code generator** — `kode_voucher`
+   is server-generated (the client never supplies one), yet it returned
+   the *exact same* code (`U2JH8RAHQZ5YYGTE`) on every one of 5 separate
+   `createVoucher` calls, across 2 independent user accounts and 2
+   separate process runs minutes apart — ruling out both random chance
+   and per-account derivation. `POST /tes/create` is confirmed broken
+   backend-wide, not account-specific, and no client-side retry can ever
+   succeed until the backend team fixes the generator or clears
+   whatever already occupies that code in `peserta`.
+
+**Action needed, external to this repo**: report both findings to
+whoever owns the Development backend (contact unknown to this session —
+whoever receives this file should route it). Until fixed, `LANGKAH 2.5`
+(counseling) and `LANGKAH 2.6` (test-taking) stay unreachable end-to-end
+against this environment, since both need a real voucher that
+`createVoucher` cannot currently produce.
+
+---
+
 ## (a) UI behavior deliberately simplified
 
 **Onboarding visual assets replaced with Material Icons, copy text kept
