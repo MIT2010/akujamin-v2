@@ -128,6 +128,24 @@ and this migration has never once exercised an iOS build (every session
 of live verification used Chrome web or, for this specific fix, a real
 Android debug APK). Deferred rather than guessed at.
 
+**`third_party/no_screenshot` is a temporary local vendor patch, not a
+permanent fork.** Found/fixed 2026-07-17 (MIGRATION_LOG.md finding
+#24) — pub.dev's `no_screenshot` 1.2.0 ships an `android/build.gradle`
+whose AGP-9 migration has a real bug (assumes `android.builtInKotlin`
+is `true` whenever AGP's major version is `>= 9`, but Flutter's own
+template default is `false` — `flutter/flutter#183910`), so this
+project vendors a copy with only that one file patched, wired in via
+`dependency_overrides` in the workspace-root `pubspec.yaml`. The
+package itself is healthy and actively maintained (160 pub points, 280
+likes, not discontinued) — this is a stopgap for a landing-day bug in
+its latest release, not a maintenance-status replacement. **Action
+item**: check pub.dev for a `no_screenshot` release past 1.2.0
+whenever this is revisited; the moment upstream genuinely fixes AGP 9
+support (verify with a real `flutter build apk`, not just the
+changelog claiming it), delete `third_party/no_screenshot`, drop the
+`dependency_overrides` entry, and bump `feature_test`'s
+`no_screenshot` constraint to that version.
+
 ---
 
 ## (b) Not tested against a real external system

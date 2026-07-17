@@ -1072,6 +1072,78 @@ allows — Gradle successfully evaluated `:app`'s own configuration
 attempt, only the unrelated `:no_screenshot` subproject ultimately
 blocked a full APK build.
 
+**24. ✅ Resolved 2026-07-17, reported directly from a real device — the
+`no_screenshot` build failure finding #23 left open turned out to be
+two separate, stacked bugs, both genuinely pre-existing and only
+discoverable by actually running `flutter build apk` (never done once
+in this migration before this week).** Investigated with the explicit
+instruction not to assume a cause — reproduced locally, read every
+error message and stack trace in full, and cross-checked against
+upstream sources before touching any code.
+
+*Bug 1 — `no_screenshot`'s AGP-9 guard is wrong for this project's
+actual configuration.* `no_screenshot` 1.2.0's `android/build.gradle`
+(published *2 days before* this bug was reported — its changelog says
+"Migrate to built-in Kotlin... ensuring compatibility with AGP 9+")
+checks `agpMajor >= 9` and, on that condition, skips applying
+`kotlin-android` and uses the bare `kotlin { compilerOptions {...} }`
+DSL directly, assuming AGP's built-in Kotlin support is active
+whenever AGP's major version is 9 or higher. It isn't: Flutter's own
+template sets `android.builtInKotlin=false` in `gradle.properties` by
+design (`flutter/flutter#183910`, "[AGP 9] Disable Built-in Kotlin By
+Default" — the flag exists specifically so mid-migration plugins like
+this one don't break everyone's build), so the `kotlin {}` extension
+`no_screenshot` referenced was never registered by anyone. First
+tried the "obvious" opposite fix — setting `android.builtInKotlin=true`
+— but that broke a *second*, unrelated plugin (`audio_session`
+0.2.4, a `just_audio`/`feature_test` transitive dependency): AGP 9
+refuses outright to let `org.jetbrains.kotlin.android` be applied to
+*any* subproject once built-in Kotlin is genuinely active
+project-wide, and `audio_session`'s own (separately correct) AGP-9
+guard couldn't prevent that — confirmed via a full `--stacktrace` run
+showing the failure inside AGP's own
+`BuiltInKotlinServicesKt.failIfIncompatiblePluginsArePresent`, not in
+either plugin's script. Reverting `android.builtInKotlin` to `false`
+confirmed `audio_session` was fine all along under the Flutter
+default — only `no_screenshot` needed a fix. **Fix**: vendored a local
+copy of `no_screenshot` 1.2.0 at `third_party/no_screenshot`, patched
+only its `android/build.gradle` to unconditionally apply
+`kotlin-android` (reverting the upstream 1.2.0 change, matching how
+every version before it — and every other plugin in this project —
+still works under Flutter's default), wired in via a workspace-root
+`dependency_overrides` (`pubspec.yaml`) rather than a per-package one,
+since Dart pub workspaces resolve overrides once for every member
+package from the root. Same "verify a package's real maintenance
+status before replacing it" discipline as the `markdown_widget`
+precedent — checked pub.dev directly (160 points, 280 likes, actively
+published, not discontinued) before concluding a *patch* was the
+right call here, not a *replacement*: the package is healthy, its AGP-9
+migration attempt just landed with a real bug. **Temporary** — GAPS.md
+notes this vendor patch should be deleted the moment a `no_screenshot`
+release genuinely fixes AGP 9 support (not just claims to).
+
+*Bug 2 — core library desugaring was never enabled.* With `no_screenshot`
+fixed, the next `flutter build apk` failed differently: `":flutter_local_notifications'
+requires core library desugaring to be enabled for :app"` — a
+standard, well-documented Android requirement
+(`flutter_local_notifications` v10+ needs it for backwards-compatible
+scheduled notifications) that this project's `app/build.gradle.kts`
+never had configured, again invisible until a real Android build ran.
+**Fix**: `compileOptions { isCoreLibraryDesugaringEnabled = true }`
+plus a `coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.4")`
+dependency, exactly matching the version `flutter_local_notifications`'
+own README specifies.
+
+**Verified end to end, not just "no error"**: a real `flutter build apk
+--flavor dev --debug` succeeded (`app-dev-debug.apk`, ~124 MB — a
+genuine, fully-linked APK, not an empty/broken one), and `aapt dump
+badging` against that exact APK confirmed
+`application-label:'AKUJAMIN Dev'` — proving finding #23's `APP_NAME`
+fix *and* this finding's two fixes all work together in a real build,
+not just in isolated Gradle-configuration-evaluation runs. Full
+`melos run gen`/`analyze`/`test` baseline stayed green throughout —
+neither fix touches Dart code at all.
+
 ---
 
 ## ✓ Resolved — `payment` status codes (was: open item above)
