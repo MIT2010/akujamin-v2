@@ -860,6 +860,50 @@ system's color/typography/token/asset gap (needs real brand assets, not
 something to synthesize), and the cosmetic per-screen styling losses
 (branded page header, dashed upload border, colored history-card status).
 
+**18. ✅ Resolved 2026-07-16 — `ApiClient` (`packages/core`) only ever
+caught `DioException` in all five methods, leaving finding #10's actual
+root cause open for every endpoint except the one it was found on.**
+Finding #10 fixed the crash in `UserProfileModel` alone, explicitly
+leaving "the `ApiClient` parser-exception-safety gap" open as a separate
+item at the time. Any other endpoint whose real response shape doesn't
+match its model's assumption — not yet exercised against a real backend
+— would crash the exact same uncaught way. **Fix**: every method
+(`get`/`post`/`put`/`delete`/`multipart`) now has a second `catch (e)`
+clause around the `parser` call, converting `TypeError`/
+`FormatException`/anything else non-`DioException` into
+`Result.Err(ParsingFailure)` — a new `Failure` subtype — instead of
+letting it propagate. The message keeps the underlying exception's own
+description for logs/diagnostics; safe to do since that text originates
+entirely from this app's own Dart type-cast machinery, never from the
+response body (unlike finding #11's raw-SQL disclosure, which is the
+opposite problem). Seven new `api_client_test.dart` cases prove every
+method converts a parser exception into a handleable `Result` instead of
+crashing. Full workspace baseline stayed green.
+
+**19. ✅ Resolved 2026-07-17, found from live web testing — `Image.file`
+crashed outright on Flutter Web, hit first in the register flow's
+selfie preview, confirmed by grep to also exist in payment's
+bukti-pembayaran preview.** `Image.file` asserts `!kIsWeb` internally
+(`packages/flutter/lib/src/widgets/image.dart:545`) and throws
+`"Image.file is not supported on Flutter Web"` — both
+`register_page.dart`'s `_CameraOrPreview` (selfie, after
+`SelfieCameraCubit`/`camera` package captures it) and
+`payment_method_view.dart` (bukti pembayaran, after `image_picker`
+picks it) built `Image.file(File(path))` unconditionally, with no
+`kIsWeb` branch at all. On web, `path` was never a real filesystem path
+to begin with — the `camera` and `image_picker` packages' own web
+implementations hand back an `XFile` backed by a `blob:` URL. **Fix**: a
+new `LocalImagePreview` widget in `design_system`
+(`src/widgets/media/local_image_preview.dart`) — `Image.network(path)`
+on web (a `blob:` URL loads the same way an `http(s):` one does),
+`Image.file(File(path))` everywhere else — replacing both call sites.
+`kIsWeb` is a compile-time constant fixed by the test runner's target
+(the Dart VM, never the web compiler), so the web branch itself can't be
+exercised by `flutter test`; two new tests cover the native branch
+(path/fit/dimensions all render correctly), with the web-branch gap
+named explicitly in both the widget's doc comment and the test file
+rather than faked. Full workspace baseline stayed green.
+
 ---
 
 ## ✓ Resolved — `payment` status codes (was: open item above)
